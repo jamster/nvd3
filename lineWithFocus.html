@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>nvd3.js - Focus + Context Line</title>
+
+    <style type="text/css">
+
+      @import url("https://raw.github.com/novus/nvd3/master/src/d3.css");
+
+    </style>
+
+    <style type="text/css">
+
+    body {
+      overflow-y:scroll;
+    }
+
+    text {
+      font: 12px sans-serif;
+    }
+
+    </style>
+
+  </head>
+  <body>
+
+    <div id="test1">
+      <svg></svg>
+    </div>
+
+
+
+    <script type="text/javascript" src="https://raw.github.com/novus/nvd3/master/lib/jquery-1.7.1.min.js"></script>
+    <script type="text/javascript" src="https://raw.github.com/novus/nvd3/master/lib/d3.v2.js"></script>
+    <script type="text/javascript" src="https://raw.github.com/novus/nvd3/master/nv.d3.js"></script>
+
+    <script>
+
+
+    nv.addGraph({
+      generate: function() {
+        var width = $(window).width() - 40,
+            height = $(window).height() - 40;
+
+        var chart = nv.models.lineWithFocus()
+                    .width(width)
+                    .height(height)
+                    .yTickFormat(d3.format('.2r'))
+                    .xTickFormat(d3.format('.2r'))
+
+
+        var svg = d3.select('#test1 svg')
+          .attr('width', width)
+          .attr('height', height)
+          .datum(sinAndCos());
+
+        svg.transition().duration(500).call(chart);
+
+        return chart;
+      },
+      callback: function(graph) {
+
+        graph.dispatch.on('tooltipShow', function(e) {
+          var offset = $('#test1').offset(),
+              left = e.pos[0] + offset.left,
+              top = e.pos[1] + offset.top,
+              formatter = d3.format('.2r');
+
+          var content = '<h3>' + e.series.key + '</h3>' +
+                        '<p>' +
+                        formatter(graph.y()(e.point)) + ', ' + formatter(graph.x()(e.point)) +
+                        '</p>';
+
+          nvtooltip.show([left, top], content);
+        });
+
+        graph.dispatch.on('tooltipHide', function(e) {
+          nvtooltip.cleanup();
+        });
+
+
+
+        $(window).resize(function() {
+          var width = $(window).width() - 40,
+              height = $(window).height() - 40,
+              margin = graph.margin();
+
+
+          if (width < margin.left + margin.right + 20)
+            width = margin.left + margin.right + 20;
+
+          if (height < margin.top + margin.bottom + 20)
+            height = margin.top + margin.bottom + 20;
+
+
+          graph
+             .width(width)
+             .height(height);
+
+          d3.select('#test1 svg')
+            .attr('width', width)
+            .attr('height', height)
+            .call(graph);
+
+          });
+      }
+    });
+
+
+
+    function sinAndCos() {
+      var sin = [],
+          cos = [];
+
+      for (var i = 0; i < 100; i++) {
+        sin.push({x: i, y: Math.sin(i/10)});
+        cos.push({x: i, y: .5 * Math.cos(i/10)});
+      }
+
+      return [
+        {
+          values: sin,
+          key: "Sine Wave",
+          color: "#ff7f0e"
+        },
+        {
+          values: cos,
+          key: "Cosine Wave",
+          color: "#2ca02c"
+        }
+      ];
+    }
+
+
+    </script>
+  </body>
+</html>
+
