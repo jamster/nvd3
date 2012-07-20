@@ -68,7 +68,6 @@ nv.render = function render(step) {
 };
 nv.render.queue = [];
 
-
 nv.addGraph = function(obj) {
   if (typeof arguments[0] === 'function')
     obj = {generate: arguments[0], callback: arguments[1]};
@@ -78,27 +77,13 @@ nv.addGraph = function(obj) {
   if (!nv.render.active) nv.render();
 };
 
-
 nv.identity = function(d) { return d };
 
-
-nv.strip = function(s) {
-  return s.replace(/(\s|&)/g,'');
-}
-
-
-/* An ugly implementation to get month end axis dates
- * Will hopefully refactor sooner than later
- */
+nv.strip = function(s) { return s.replace(/(\s|&)/g,''); };
 
 function daysInMonth(month,year) {
-  var m = [31,28,31,30,31,30,31,31,30,31,30,31];
-  if (month != 2) return m[month - 1];
-  if (year%4 != 0) return m[1];
-  if (year%100 == 0 && year%400 != 0) return m[1];
-  return m[1] + 1;
-}
-
+  return (new Date(year, month+1, 0)).getDate();
+};
 
 function d3_time_range(floor, step, number) {
   return function(t0, t1, dt) {
@@ -115,13 +100,11 @@ function d3_time_range(floor, step, number) {
     }
     return times;
   };
-}
-
+};
 
 d3.time.monthEnd = function(date) {
   return new Date(date.getFullYear(), date.getMonth(), 0);
 };
-
 
 d3.time.monthEnds = d3_time_range(d3.time.monthEnd, function(date) {
     date.setUTCDate(date.getUTCDate() + 1);
@@ -130,7 +113,6 @@ d3.time.monthEnds = d3_time_range(d3.time.monthEnd, function(date) {
     return date.getMonth();
   }
 );
-
 
 /*****
  * A no frills tooltip implementation.
@@ -141,15 +123,15 @@ d3.time.monthEnds = d3_time_range(d3.time.monthEnd, function(date) {
 
   var nvtooltip = window.nv.tooltip = {};
 
-  nvtooltip.show = function(pos, content, gravity, dist) {
+  nvtooltip.show = function(pos, content, gravity, dist, parentContainer, classes) {
 
-    var container = document.createElement("div");
-        container.className = "nvtooltip";
+    var container = document.createElement('div');
+        container.className = 'nvtooltip ' + (classes ? classes : 'xy-tooltip');
 
     gravity = gravity || 's';
     dist = dist || 20;
 
-    var body = document.getElementsByTagName("body")[0];
+    var body = parentContainer ? parentContainer : document.getElementsByTagName('body')[0];
 
     container.innerHTML = content;
     container.style.left = 0;
@@ -199,11 +181,11 @@ d3.time.monthEnds = d3_time_range(d3.time.monthEnd, function(date) {
     }
 
 
-    container.style.left = left+"px";
-    container.style.top = top+"px";
+    container.style.left = left+'px';
+    container.style.top = top+'px';
     container.style.opacity = 1;
-    container.style.position = "absolute"; //fix scroll bar issue
-    container.style.pointerEvents = "none"; //fix scroll bar issue
+    container.style.position = 'absolute'; //fix scroll bar issue
+    container.style.pointerEvents = 'none'; //fix scroll bar issue
 
     return container;
   };
@@ -215,9 +197,9 @@ d3.time.monthEnds = d3_time_range(d3.time.monthEnd, function(date) {
       var purging = [];
       while(tooltips.length) {
         purging.push(tooltips[0]);
-        tooltips[0].style.transitionDelay = "0 !important";
+        tooltips[0].style.transitionDelay = '0 !important';
         tooltips[0].style.opacity = 0;
-        tooltips[0].className = "nvtooltip-pending-removal";
+        tooltips[0].className = 'nvtooltip-pending-removal';
       }
 
 
@@ -274,7 +256,9 @@ nv.utils.windowResize = function(fun){
 
 nv.models.axis = function() {
   //Default Settings
-  var scale = d3.scale.linear(),
+  var width = 60, //only used for tickLabel currently
+      height = 60, //only used for tickLabel currently
+      scale = d3.scale.linear(),
       axisLabelText = null,
       showMaxMin = true, //TODO: showMaxMin should be disabled on all ordinal scaled axes
       highlightZero = true;
@@ -314,8 +298,9 @@ nv.models.axis = function() {
           axisLabel.enter().append('text').attr('class', 'axislabel')
               .attr('text-anchor', 'middle')
               .attr('y', 0);
+          var w = (scale.range().length==2) ? scale.range()[1] : (scale.range()[scale.range().length-1]+(scale.range()[1]-scale.range()[0]));
           axisLabel
-              .attr('x', scale.range()[1] / 2);
+              .attr('x', w/2);
           if (showMaxMin) {
             var axisMaxMin = wrap.selectAll('g.axisMaxMin')
                            .data(scale.domain());
@@ -341,9 +326,10 @@ nv.models.axis = function() {
         case 'bottom':
           axisLabel.enter().append('text').attr('class', 'axislabel')
               .attr('text-anchor', 'middle')
-              .attr('y', 25);
+              .attr('y', 30);
+          var w = (scale.range().length==2) ? scale.range()[1] : (scale.range()[scale.range().length-1]+(scale.range()[1]-scale.range()[0]));
           axisLabel
-              .attr('x', scale.range()[1] / 2);
+              .attr('x', w/2);
           if (showMaxMin) {
             var axisMaxMin = wrap.selectAll('g.axisMaxMin')
                            .data(scale.domain());
@@ -370,7 +356,7 @@ nv.models.axis = function() {
           axisLabel.enter().append('text').attr('class', 'axislabel')
               .attr('text-anchor', 'middle')
               .attr('transform', 'rotate(90)')
-              .attr('y', -40); //TODO: consider calculating this based on largest tick width... OR at least expose this on chart
+              .attr('y', -width + 12); //TODO: consider calculating this based on largest tick width... OR at least expose this on chart
           axisLabel
               .attr('x', -scale.range()[0] / 2);
           if (showMaxMin) {
@@ -403,7 +389,7 @@ nv.models.axis = function() {
           axisLabel.enter().append('text').attr('class', 'axislabel')
               .attr('text-anchor', 'middle')
               .attr('transform', 'rotate(-90)')
-              .attr('y', -40); //TODO: consider calculating this based on largest tick width... OR at least expose this on chart
+              .attr('y', -width + 12); //TODO: consider calculating this based on largest tick width... OR at least expose this on chart
           axisLabel
               .attr('x', -scale.range()[0] / 2);
           if (showMaxMin) {
@@ -489,6 +475,18 @@ nv.models.axis = function() {
   d3.rebind(chart, axis, 'orient', 'ticks', 'tickValues', 'tickSubdivide', 'tickSize', 'tickPadding', 'tickFormat');
   d3.rebind(chart, scale, 'domain', 'range', 'rangeBand', 'rangeBands'); //these are also accessible by chart.scale(), but added common ones directly for ease of use
 
+  chart.width = function(_) {
+    if (!arguments.length) return width;
+    width = _;
+    return chart;
+  };
+
+  chart.height = function(_) {
+    if (!arguments.length) return height;
+    height = _;
+    return chart;
+  };
+
   chart.axisLabel = function(_) {
     if (!arguments.length) return axisLabelText;
     axisLabelText = _;
@@ -550,6 +548,18 @@ nv.models.historicalBar = function() {
 
       y   .domain(yDomain || d3.extent(data[0].values.map(getY).concat(forceY) )) 
           .range([availableHeight, 0]);
+
+      // If scale's domain don't have a range, slightly adjust to make one... so a chart can show a single data point
+      if (x.domain()[0] === x.domain()[1] || y.domain()[0] === y.domain()[1]) singlePoint = true;
+      if (x.domain()[0] === x.domain()[1])
+        x.domain()[0] ?
+            x.domain([x.domain()[0] - x.domain()[0] * 0.01, x.domain()[1] + x.domain()[1] * 0.01])
+          : x.domain([-1,1]);
+
+      if (y.domain()[0] === y.domain()[1])
+        y.domain()[0] ?
+            y.domain([y.domain()[0] + y.domain()[0] * 0.01, y.domain()[1] - y.domain()[1] * 0.01])
+          : y.domain([-1,1]);
 
 
       var parent = d3.select(this)
@@ -1544,7 +1554,7 @@ nv.models.cumulativeLineChart = function() {
   chart.xAxis = xAxis;
   chart.yAxis = yAxis;
 
-  d3.rebind(chart, lines, 'defined', 'x', 'y', 'size', 'xDomain', 'yDomain', 'forceX', 'forceY', 'interactive', 'clipEdge', 'clipVoronoi', 'id');
+  d3.rebind(chart, lines, 'defined', 'isArea', 'x', 'y', 'size', 'xDomain', 'yDomain', 'forceX', 'forceY', 'interactive', 'clipEdge', 'clipVoronoi', 'id');
 
 
   chart.margin = function(_) {
@@ -2241,398 +2251,6 @@ nv.models.distribution = function() {
   return chart;
 }
 
-nv.models.legend = function() {
-  var margin = {top: 5, right: 0, bottom: 5, left: 0},
-      width = 400,
-      height = 20,
-      getKey = function(d) { return d.key },
-      color = d3.scale.category20().range(),
-      align = true;
-
-  var dispatch = d3.dispatch('legendClick', 'legendDblclick', 'legendMouseover', 'legendMouseout'); //TODO: theres are really element or series events, there are currently no 'LEGEND' events (as in entire legend)... decide if they are needed
-
-  function chart(selection) {
-    selection.each(function(data) {
-      var availableWidth = width - margin.left - margin.right;
-
-      var wrap = d3.select(this).selectAll('g.legend').data([data]);
-      var gEnter = wrap.enter().append('g').attr('class', 'nvd3 legend').append('g');
-
-
-      var g = wrap.select('g')
-          .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
-
-
-      var series = g.selectAll('.series')
-          .data(function(d) { return d });
-      var seriesEnter = series.enter().append('g').attr('class', 'series')
-          .on('mouseover', function(d,i) {
-            dispatch.legendMouseover(d,i);  //TODO: Make consistent with other event objects
-          })
-          .on('mouseout', function(d,i) {
-            dispatch.legendMouseout(d,i);
-          })
-          .on('click', function(d,i) {
-            dispatch.legendClick(d,i);
-          })
-          .on('dblclick', function(d,i) {
-            dispatch.legendDblclick(d,i);
-          });
-      seriesEnter.append('circle')
-          .style('fill', function(d,i) { return d.color || color[i % color.length] })
-          .style('stroke', function(d,i) { return d.color || color[i % color.length] })
-          .style('stroke-width', 2)
-          .attr('r', 5);
-      seriesEnter.append('text')
-          .text(getKey)
-          .attr('text-anchor', 'start')
-          .attr('dy', '.32em')
-          .attr('dx', '8');
-      series.classed('disabled', function(d) { return d.disabled });
-      series.exit().remove();
-
-
-      //TODO: implement fixed-width and max-width options (max-width is especially useful with the align option)
-
-
-      // NEW ALIGNING CODE, TODO: drastically clean up ... this is just the ugly initial code to make sure the math is right
-      if (align) {
-        var seriesWidths = [];
-        series.each(function(d,i) {
-              seriesWidths.push(d3.select(this).select('text').node().getComputedTextLength() + 28); // 28 is ~ the width of the circle plus some padding
-            });
-
-        //console.log('Series Widths: ', JSON.stringify(seriesWidths));
-
-        var seriesPerRow = 0;
-        var legendWidth = 0;
-        var columnWidths = [];
-
-        while ( legendWidth < availableWidth && seriesPerRow < seriesWidths.length) {
-          columnWidths[seriesPerRow] = seriesWidths[seriesPerRow];
-          legendWidth += seriesWidths[seriesPerRow++];
-        }
-
-
-        while ( legendWidth > availableWidth && seriesPerRow > 1 ) {
-          columnWidths = [];
-          seriesPerRow--;
-
-          for (k = 0; k < seriesWidths.length; k++) {
-            if (seriesWidths[k] > (columnWidths[k % seriesPerRow] || 0) )
-              columnWidths[k % seriesPerRow] = seriesWidths[k];
-          }
-
-          legendWidth = columnWidths.reduce(function(prev, cur, index, array) {
-                          return prev + cur;
-                        });
-        }
-        //console.log(columnWidths, legendWidth, seriesPerRow);
-
-        var xPositions = [];
-        for (var i = 0, curX = 0; i < seriesPerRow; i++) {
-            xPositions[i] = curX;
-            curX += columnWidths[i];
-        }
-
-        series
-            .attr('transform', function(d, i) {
-              return 'translate(' + xPositions[i % seriesPerRow] + ',' + (5 + Math.floor(i / seriesPerRow) * 20) + ')';
-            });
-
-        //position legend as far right as possible within the total width
-        g.attr('transform', 'translate(' + (width - margin.right - legendWidth) + ',' + margin.top + ')');
-
-        height = margin.top + margin.bottom + (Math.ceil(seriesWidths.length / seriesPerRow) * 20);
-      } else {
-
-        var ypos = 5,
-            newxpos = 5,
-            maxwidth = 0,
-            xpos;
-        series
-            .attr('transform', function(d, i) {
-              var length = d3.select(this).select('text').node().getComputedTextLength() + 28;
-              xpos = newxpos;
-
-              if (width < margin.left + margin.right + xpos + length) {
-                newxpos = xpos = 5;
-                ypos += 20;
-              }
-
-              newxpos += length;
-              if (newxpos > maxwidth) maxwidth = newxpos;
-
-              return 'translate(' + xpos + ',' + ypos + ')';
-            });
-
-        //position legend as far right as possible within the total width
-        g.attr('transform', 'translate(' + (width - margin.right - maxwidth) + ',' + margin.top + ')');
-
-        height = margin.top + margin.bottom + ypos + 15;
-      }
-
-
-
-
-    });
-
-    return chart;
-  }
-
-
-  chart.dispatch = dispatch;
-
-  chart.margin = function(_) {
-    if (!arguments.length) return margin;
-    margin = _;
-    return chart;
-  };
-
-  chart.width = function(_) {
-    if (!arguments.length) return width;
-    width = _;
-    return chart;
-  };
-
-  chart.height = function(_) {
-    if (!arguments.length) return height;
-    height = _;
-    return chart;
-  };
-
-  chart.key = function(_) {
-    if (!arguments.length) return getKey;
-    getKey = _;
-    return chart;
-  };
-
-  chart.color = function(_) {
-    if (!arguments.length) return color;
-    color = _;
-    return chart;
-  };
-
-  chart.align = function(_) {
-    if (!arguments.length) return align;
-    align = _;
-    return chart;
-  };
-
-  return chart;
-}
-
-nv.models.line = function() {
-
-  //============================================================
-  // Public Variables with Default Settings
-  //------------------------------------------------------------
-
-  var margin = {top: 0, right: 0, bottom: 0, left: 0},
-      width = 960,
-      height = 500,
-      color = d3.scale.category20().range(), // array of colors to be used in order
-      id = Math.floor(Math.random() * 10000), //Create semi-unique ID incase user doesn't select one
-      getX = function(d) { return d.x }, // accessor to get the x value from a data point
-      getY = function(d) { return d.y }, // accessor to get the y value from a data point
-      defined = function(d,i) { return !isNaN(getY(d,i)) && getY(d,i) !== null }, // allows a line to be not continous when it is not defined
-      clipEdge = false, // if true, masks lines within x and y scale
-      x, y, //can be accessed via chart.scatter.[x/y]Scale()
-      interpolate = "linear"; // controls the line interpolation
-
-
-  //============================================================
-  // Private Variables
-  //------------------------------------------------------------
-
-  var scatter = nv.models.scatter()
-                  .id(id)
-                  .size(16) // default size
-                  .sizeDomain([16,256]), //set to speed up calculation, needs to be unset if there is a cstom size accessor
-      x0, y0,
-      timeoutID;
-
-
-  function chart(selection) {
-    selection.each(function(data) {
-      var availableWidth = width - margin.left - margin.right,
-          availableHeight = height - margin.top - margin.bottom,
-          container = d3.select(this);
-
-      x = scatter.xScale();
-      y = scatter.yScale();
-
-      x0 = x0 || x;
-      y0 = y0 || y;
-
-
-      var wrap = container.selectAll('g.wrap.line').data([data]);
-      var wrapEnter = wrap.enter().append('g').attr('class', 'wrap nvd3 line');
-      var defsEnter = wrapEnter.append('defs');
-      var gEnter = wrapEnter.append('g');
-      var g = wrap.select('g')
-
-      gEnter.append('g').attr('class', 'groups');
-      gEnter.append('g').attr('class', 'scatterWrap');
-
-      var scatterWrap = wrap.select('.scatterWrap');//.datum(data);
-
-
-      scatter
-        .width(availableWidth)
-        .height(availableHeight)
-
-      d3.transition(scatterWrap).call(scatter);
-
-
-
-      wrap.attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
-
-
-      defsEnter.append('clipPath')
-          .attr('id', 'edge-clip-' + id)
-        .append('rect');
-
-      wrap.select('#edge-clip-' + id + ' rect')
-          .attr('width', availableWidth)
-          .attr('height', availableHeight);
-
-      g   .attr('clip-path', clipEdge ? 'url(#edge-clip-' + id + ')' : '');
-      scatterWrap
-          .attr('clip-path', clipEdge ? 'url(#edge-clip-' + id + ')' : '');
-
-
-
-
-      var groups = wrap.select('.groups').selectAll('.group')
-          .data(function(d) { return d }, function(d) { return d.key });
-      groups.enter().append('g')
-          .style('stroke-opacity', 1e-6)
-          .style('fill-opacity', 1e-6);
-      d3.transition(groups.exit())
-          .style('stroke-opacity', 1e-6)
-          .style('fill-opacity', 1e-6)
-          .remove();
-      groups
-          .attr('class', function(d,i) { return 'group series-' + i })
-          .classed('hover', function(d) { return d.hover })
-          .style('fill', function(d,i){ return color[i % color.length] })
-          .style('stroke', function(d,i){ return color[i % color.length] });
-      d3.transition(groups)
-          .style('stroke-opacity', 1)
-          .style('fill-opacity', .5);
-
-
-      var paths = groups.selectAll('path')
-          .data(function(d, i) { return [d.values] });
-      paths.enter().append('path')
-          .attr('class', 'line')
-          .attr('d', d3.svg.line()
-            .interpolate(interpolate)
-            .defined(defined)
-            .x(function(d,i) { return x0(getX(d,i)) })
-            .y(function(d,i) { return y0(getY(d,i)) })
-          );
-      d3.transition(groups.exit().selectAll('path'))
-          .attr('d', d3.svg.line()
-            .interpolate(interpolate)
-            .defined(defined)
-            .x(function(d,i) { return x(getX(d,i)) })
-            .y(function(d,i) { return y(getY(d,i)) })
-          );
-      d3.transition(paths)
-          .attr('d', d3.svg.line()
-            .interpolate(interpolate)
-            .defined(defined)
-            .x(function(d,i) { return x(getX(d,i)) })
-            .y(function(d,i) { return y(getY(d,i)) })
-          );
-
-
-      //store old scales for use in transitions on update
-      x0 = x.copy();
-      y0 = y.copy();
-
-    });
-
-    return chart;
-  }
-
-
-  //============================================================
-  // Global getters and setters
-  //------------------------------------------------------------
-
-  chart.dispatch = scatter.dispatch;
-
-  d3.rebind(chart, scatter, 'interactive', 'size', 'xScale', 'yScale', 'zScale', 'xDomain', 'yDomain', 'sizeDomain', 'forceX', 'forceY', 'forceSize', 'clipVoronoi', 'clipRadius');
-
-  chart.margin = function(_) {
-    if (!arguments.length) return margin;
-    margin = _;
-    return chart;
-  };
-
-  chart.width = function(_) {
-    if (!arguments.length) return width;
-    width = _;
-    return chart;
-  };
-
-  chart.height = function(_) {
-    if (!arguments.length) return height;
-    height = _;
-    return chart;
-  };
-
-  chart.x = function(_) {
-    if (!arguments.length) return getX;
-    getX = _;
-    scatter.x(_);
-    return chart;
-  };
-
-  chart.y = function(_) {
-    if (!arguments.length) return getY;
-    getY = _;
-    scatter.y(_);
-    return chart;
-  };
-
-  chart.clipEdge = function(_) {
-    if (!arguments.length) return clipEdge;
-    clipEdge = _;
-    return chart;
-  };
-
-  chart.color = function(_) {
-    if (!arguments.length) return color;
-    color = _;
-    scatter.color(_);
-    return chart;
-  };
-
-  chart.id = function(_) {
-    if (!arguments.length) return id;
-    id = _;
-    return chart;
-  };
-
-  chart.interpolate = function(_) {
-    if (!arguments.length) return interpolate;
-    interpolate = _;
-    return chart;
-  };
-
-  chart.defined = function(_) {
-    if (!arguments.length) return defined;
-    defined = _;
-    return chart;
-  };
-
-  return chart;
-}
-
 //TODO: Finish merging this chart into the NVD3 style!
 nv.models.indentedTree = function() {
   //Default Settings
@@ -2920,6 +2538,450 @@ nv.models.indentedTree = function() {
   return chart;
 }
 
+nv.models.legend = function() {
+  var margin = {top: 5, right: 0, bottom: 5, left: 0},
+      width = 400,
+      height = 20,
+      getKey = function(d) { return d.key },
+      color = d3.scale.category20().range(),
+      align = true;
+
+  var dispatch = d3.dispatch('legendClick', 'legendDblclick', 'legendMouseover', 'legendMouseout'); //TODO: theres are really element or series events, there are currently no 'LEGEND' events (as in entire legend)... decide if they are needed
+
+  function chart(selection) {
+    selection.each(function(data) {
+      var availableWidth = width - margin.left - margin.right;
+
+      var wrap = d3.select(this).selectAll('g.legend').data([data]);
+      var gEnter = wrap.enter().append('g').attr('class', 'nvd3 legend').append('g');
+
+
+      var g = wrap.select('g')
+          .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+
+
+      var series = g.selectAll('.series')
+          .data(function(d) { return d });
+      var seriesEnter = series.enter().append('g').attr('class', 'series')
+          .on('mouseover', function(d,i) {
+            dispatch.legendMouseover(d,i);  //TODO: Make consistent with other event objects
+          })
+          .on('mouseout', function(d,i) {
+            dispatch.legendMouseout(d,i);
+          })
+          .on('click', function(d,i) {
+            dispatch.legendClick(d,i);
+          })
+          .on('dblclick', function(d,i) {
+            dispatch.legendDblclick(d,i);
+          });
+      seriesEnter.append('circle')
+          .style('fill', function(d,i) { return d.color || color[i % color.length] })
+          .style('stroke', function(d,i) { return d.color || color[i % color.length] })
+          .style('stroke-width', 2)
+          .attr('r', 5);
+      seriesEnter.append('text')
+          .text(getKey)
+          .attr('text-anchor', 'start')
+          .attr('dy', '.32em')
+          .attr('dx', '8');
+      series.classed('disabled', function(d) { return d.disabled });
+      series.exit().remove();
+
+
+      //TODO: implement fixed-width and max-width options (max-width is especially useful with the align option)
+
+
+      // NEW ALIGNING CODE, TODO: drastically clean up ... this is just the ugly initial code to make sure the math is right
+      if (align) {
+        var seriesWidths = [];
+        series.each(function(d,i) {
+              seriesWidths.push(d3.select(this).select('text').node().getComputedTextLength() + 28); // 28 is ~ the width of the circle plus some padding
+            });
+
+        //console.log('Series Widths: ', JSON.stringify(seriesWidths));
+
+        var seriesPerRow = 0;
+        var legendWidth = 0;
+        var columnWidths = [];
+
+        while ( legendWidth < availableWidth && seriesPerRow < seriesWidths.length) {
+          columnWidths[seriesPerRow] = seriesWidths[seriesPerRow];
+          legendWidth += seriesWidths[seriesPerRow++];
+        }
+
+
+        while ( legendWidth > availableWidth && seriesPerRow > 1 ) {
+          columnWidths = [];
+          seriesPerRow--;
+
+          for (k = 0; k < seriesWidths.length; k++) {
+            if (seriesWidths[k] > (columnWidths[k % seriesPerRow] || 0) )
+              columnWidths[k % seriesPerRow] = seriesWidths[k];
+          }
+
+          legendWidth = columnWidths.reduce(function(prev, cur, index, array) {
+                          return prev + cur;
+                        });
+        }
+        //console.log(columnWidths, legendWidth, seriesPerRow);
+
+        var xPositions = [];
+        for (var i = 0, curX = 0; i < seriesPerRow; i++) {
+            xPositions[i] = curX;
+            curX += columnWidths[i];
+        }
+
+        series
+            .attr('transform', function(d, i) {
+              return 'translate(' + xPositions[i % seriesPerRow] + ',' + (5 + Math.floor(i / seriesPerRow) * 20) + ')';
+            });
+
+        //position legend as far right as possible within the total width
+        g.attr('transform', 'translate(' + (width - margin.right - legendWidth) + ',' + margin.top + ')');
+
+        height = margin.top + margin.bottom + (Math.ceil(seriesWidths.length / seriesPerRow) * 20);
+      } else {
+
+        var ypos = 5,
+            newxpos = 5,
+            maxwidth = 0,
+            xpos;
+        series
+            .attr('transform', function(d, i) {
+              var length = d3.select(this).select('text').node().getComputedTextLength() + 28;
+              xpos = newxpos;
+
+              if (width < margin.left + margin.right + xpos + length) {
+                newxpos = xpos = 5;
+                ypos += 20;
+              }
+
+              newxpos += length;
+              if (newxpos > maxwidth) maxwidth = newxpos;
+
+              return 'translate(' + xpos + ',' + ypos + ')';
+            });
+
+        //position legend as far right as possible within the total width
+        g.attr('transform', 'translate(' + (width - margin.right - maxwidth) + ',' + margin.top + ')');
+
+        height = margin.top + margin.bottom + ypos + 15;
+      }
+
+
+
+
+    });
+
+    return chart;
+  }
+
+
+  chart.dispatch = dispatch;
+
+  chart.margin = function(_) {
+    if (!arguments.length) return margin;
+    margin = _;
+    return chart;
+  };
+
+  chart.width = function(_) {
+    if (!arguments.length) return width;
+    width = _;
+    return chart;
+  };
+
+  chart.height = function(_) {
+    if (!arguments.length) return height;
+    height = _;
+    return chart;
+  };
+
+  chart.key = function(_) {
+    if (!arguments.length) return getKey;
+    getKey = _;
+    return chart;
+  };
+
+  chart.color = function(_) {
+    if (!arguments.length) return color;
+    color = _;
+    return chart;
+  };
+
+  chart.align = function(_) {
+    if (!arguments.length) return align;
+    align = _;
+    return chart;
+  };
+
+  return chart;
+}
+
+nv.models.line = function() {
+
+  //============================================================
+  // Public Variables with Default Settings
+  //------------------------------------------------------------
+
+  var margin = {top: 0, right: 0, bottom: 0, left: 0},
+      width = 960,
+      height = 500,
+      color = d3.scale.category20().range(), // array of colors to be used in order
+      id = Math.floor(Math.random() * 10000), //Create semi-unique ID incase user doesn't select one
+      getX = function(d) { return d.x }, // accessor to get the x value from a data point
+      getY = function(d) { return d.y }, // accessor to get the y value from a data point
+      defined = function(d,i) { return !isNaN(getY(d,i)) && getY(d,i) !== null }, // allows a line to be not continous when it is not defined
+      isArea = function(d) { return d.area }, // decides if a line is an area or just a line
+      clipEdge = false, // if true, masks lines within x and y scale
+      x, y, //can be accessed via chart.scatter.[x/y]Scale()
+      interpolate = "linear"; // controls the line interpolation
+
+
+  //============================================================
+  // Private Variables
+  //------------------------------------------------------------
+
+  var scatter = nv.models.scatter()
+                  .id(id)
+                  .size(16) // default size
+                  .sizeDomain([16,256]), //set to speed up calculation, needs to be unset if there is a cstom size accessor
+      x0, y0,
+      timeoutID;
+
+
+  function chart(selection) {
+    selection.each(function(data) {
+      var availableWidth = width - margin.left - margin.right,
+          availableHeight = height - margin.top - margin.bottom,
+          container = d3.select(this);
+
+      x = scatter.xScale();
+      y = scatter.yScale();
+
+      x0 = x0 || x;
+      y0 = y0 || y;
+
+
+      var wrap = container.selectAll('g.wrap.line').data([data]);
+      var wrapEnter = wrap.enter().append('g').attr('class', 'wrap nvd3 line');
+      var defsEnter = wrapEnter.append('defs');
+      var gEnter = wrapEnter.append('g');
+      var g = wrap.select('g')
+
+      gEnter.append('g').attr('class', 'groups');
+      gEnter.append('g').attr('class', 'scatterWrap');
+
+      var scatterWrap = wrap.select('.scatterWrap');//.datum(data);
+
+
+      scatter
+        .width(availableWidth)
+        .height(availableHeight)
+
+      d3.transition(scatterWrap).call(scatter);
+
+
+
+      wrap.attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+
+
+      defsEnter.append('clipPath')
+          .attr('id', 'edge-clip-' + id)
+        .append('rect');
+
+      wrap.select('#edge-clip-' + id + ' rect')
+          .attr('width', availableWidth)
+          .attr('height', availableHeight);
+
+      g   .attr('clip-path', clipEdge ? 'url(#edge-clip-' + id + ')' : '');
+      scatterWrap
+          .attr('clip-path', clipEdge ? 'url(#edge-clip-' + id + ')' : '');
+
+
+
+
+      var groups = wrap.select('.groups').selectAll('.group')
+          .data(function(d) { return d }, function(d) { return d.key });
+      groups.enter().append('g')
+          .style('stroke-opacity', 1e-6)
+          .style('fill-opacity', 1e-6);
+      d3.transition(groups.exit())
+          .style('stroke-opacity', 1e-6)
+          .style('fill-opacity', 1e-6)
+          .remove();
+      groups
+          .attr('class', function(d,i) { return 'group series-' + i })
+          .classed('hover', function(d) { return d.hover })
+          .style('fill', function(d,i){ return color[i % color.length] })
+          .style('stroke', function(d,i){ return color[i % color.length] });
+      d3.transition(groups)
+          .style('stroke-opacity', 1)
+          .style('fill-opacity', .5);
+
+
+
+      var areaPaths = groups.selectAll('path.area')
+          .data(function(d) { return [d] }); // this is done differently than lines because I need to check if series is an area
+      areaPaths.enter().append('path')
+          .filter(isArea)
+          .attr('class', 'area')
+          .attr('d', function(d) {
+            return d3.svg.area()
+                .interpolate(interpolate)
+                .defined(defined)
+                .x(function(d,i) { return x0(getX(d,i)) })
+                .y0(function(d,i) { return y0(getY(d,i)) })
+                .y1(function(d,i) { return y0( y.domain()[0] <= 0 ? y.domain()[1] >= 0 ? 0 : y.domain()[1] : y.domain()[0] ) })
+                //.y1(function(d,i) { return y0(0) }) //assuming 0 is within y domain.. may need to tweak this
+                .apply(this, [d.values])
+          });
+      d3.transition(groups.exit().selectAll('path.area'))
+          .attr('d', function(d) {
+            return d3.svg.area()
+                .interpolate(interpolate)
+                .defined(defined)
+                .x(function(d,i) { return x0(getX(d,i)) })
+                .y0(function(d,i) { return y0(getY(d,i)) })
+                .y1(function(d,i) { return y0( y.domain()[0] <= 0 ? y.domain()[1] >= 0 ? 0 : y.domain()[1] : y.domain()[0] ) })
+                //.y1(function(d,i) { return y0(0) }) //assuming 0 is within y domain.. may need to tweak this
+                .apply(this, [d.values])
+          });
+      d3.transition(areaPaths.filter(isArea))
+          .attr('d', function(d) {
+            return d3.svg.area()
+                .interpolate(interpolate)
+                .defined(defined)
+                .x(function(d,i) { return x0(getX(d,i)) })
+                .y0(function(d,i) { return y0(getY(d,i)) })
+                .y1(function(d,i) { return y0( y.domain()[0] <= 0 ? y.domain()[1] >= 0 ? 0 : y.domain()[1] : y.domain()[0] ) })
+                //.y1(function(d,i) { return y0(0) }) //assuming 0 is within y domain.. may need to tweak this
+                .apply(this, [d.values])
+          });
+
+
+
+      var linePaths = groups.selectAll('path.line')
+          .data(function(d) { return [d.values] });
+      linePaths.enter().append('path')
+          .attr('class', function(d) { return 'line' })
+          .attr('d',
+            d3.svg.line()
+              .interpolate(interpolate)
+              .defined(defined)
+              .x(function(d,i) { return x0(getX(d,i)) })
+              .y(function(d,i) { return y0(getY(d,i)) })
+          );
+      d3.transition(groups.exit().selectAll('path.line'))
+          .attr('d',
+            d3.svg.line()
+              .interpolate(interpolate)
+              .defined(defined)
+              .x(function(d,i) { return x(getX(d,i)) })
+              .y(function(d,i) { return y(getY(d,i)) })
+          );
+      d3.transition(linePaths)
+          .attr('d',
+            d3.svg.line()
+              .interpolate(interpolate)
+              .defined(defined)
+              .x(function(d,i) { return x(getX(d,i)) })
+              .y(function(d,i) { return y(getY(d,i)) })
+          );
+
+
+
+      //store old scales for use in transitions on update
+      x0 = x.copy();
+      y0 = y.copy();
+
+    });
+
+    return chart;
+  }
+
+
+  //============================================================
+  // Global getters and setters
+  //------------------------------------------------------------
+
+  chart.dispatch = scatter.dispatch;
+
+  d3.rebind(chart, scatter, 'interactive', 'size', 'xScale', 'yScale', 'zScale', 'xDomain', 'yDomain', 'sizeDomain', 'forceX', 'forceY', 'forceSize', 'clipVoronoi', 'clipRadius');
+
+  chart.margin = function(_) {
+    if (!arguments.length) return margin;
+    margin = _;
+    return chart;
+  };
+
+  chart.width = function(_) {
+    if (!arguments.length) return width;
+    width = _;
+    return chart;
+  };
+
+  chart.height = function(_) {
+    if (!arguments.length) return height;
+    height = _;
+    return chart;
+  };
+
+  chart.x = function(_) {
+    if (!arguments.length) return getX;
+    getX = _;
+    scatter.x(_);
+    return chart;
+  };
+
+  chart.y = function(_) {
+    if (!arguments.length) return getY;
+    getY = _;
+    scatter.y(_);
+    return chart;
+  };
+
+  chart.clipEdge = function(_) {
+    if (!arguments.length) return clipEdge;
+    clipEdge = _;
+    return chart;
+  };
+
+  chart.color = function(_) {
+    if (!arguments.length) return color;
+    color = _;
+    scatter.color(_);
+    return chart;
+  };
+
+  chart.id = function(_) {
+    if (!arguments.length) return id;
+    id = _;
+    return chart;
+  };
+
+  chart.interpolate = function(_) {
+    if (!arguments.length) return interpolate;
+    interpolate = _;
+    return chart;
+  };
+
+  chart.defined = function(_) {
+    if (!arguments.length) return defined;
+    defined = _;
+    return chart;
+  };
+
+  chart.isArea = function(_) {
+    if (!arguments.length) return isArea;
+    isArea = d3.functor(_);
+    return chart;
+  };
+
+  return chart;
+}
+
 nv.models.lineChart = function() {
 
   //============================================================
@@ -3131,7 +3193,7 @@ nv.models.lineChart = function() {
   chart.xAxis = xAxis;
   chart.yAxis = yAxis;
 
-  d3.rebind(chart, lines, 'defined', 'x', 'y', 'size', 'xDomain', 'yDomain', 'forceX', 'forceY', 'interactive', 'clipEdge', 'clipVoronoi', 'id', 'interpolate');
+  d3.rebind(chart, lines, 'defined', 'isArea', 'x', 'y', 'size', 'xScale', 'yScale', 'xDomain', 'yDomain', 'forceX', 'forceY', 'interactive', 'clipEdge', 'clipVoronoi', 'id', 'interpolate');
 
 
   chart.margin = function(_) {
@@ -3353,6 +3415,7 @@ nv.models.linePlusBarChart = function() {
         .tickSize(-availableWidth, 0);
 
       d3.transition(g.select('.y1.axis'))
+          .style('opacity', dataBars.length ? 1 : 0)
           .call(yAxis1);
 
 
@@ -3361,6 +3424,7 @@ nv.models.linePlusBarChart = function() {
         .tickSize(dataBars.length ? 0 : -availableWidth, 0); // Show the y2 rules only if y1 has none
 
       g.select('.y2.axis')
+          .style('opacity', dataLines.length ? 1 : 0)
           .attr('transform', 'translate(' + x.range()[1] + ',0)');
 
       d3.transition(g.select('.y2.axis'))
@@ -3786,7 +3850,7 @@ nv.models.lineWithFocusChart = function() {
   chart.x2Axis = x2Axis;
   chart.y2Axis = y2Axis;
 
-  d3.rebind(chart, lines, 'defined', 'x', 'y', 'size', 'xDomain', 'yDomain', 'forceX', 'forceY', 'interactive', 'clipEdge', 'clipVoronoi', 'id');
+  d3.rebind(chart, lines, 'defined', 'isArea', 'x', 'y', 'size', 'xDomain', 'yDomain', 'forceX', 'forceY', 'interactive', 'clipEdge', 'clipVoronoi', 'id');
 
 
   chart.margin = function(_) {
@@ -3878,10 +3942,6 @@ nv.models.multiBar = function() {
       var availableWidth = width - margin.left - margin.right,
           availableHeight = height - margin.top - margin.bottom;
 
-      //store old scales if they exist
-      x0 = x0 || x;
-      y0 = y0 || y;
-
       if (stacked) {
       //var stackedData = d3.layout.stack()
         data = d3.layout.stack()
@@ -3915,6 +3975,28 @@ nv.models.multiBar = function() {
 
       y   .domain(yDomain || d3.extent(d3.merge(seriesData).map(function(d) { return d.y + (stacked ? d.y0 : 0) }).concat(forceY)))
           .range([availableHeight, 0]);
+
+
+      // If scale's domain don't have a range, slightly adjust to make one... so a chart can show a single data point
+      if (x.domain()[0] === x.domain()[1] || y.domain()[0] === y.domain()[1]) singlePoint = true;
+      if (x.domain()[0] === x.domain()[1])
+        x.domain()[0] ?
+            x.domain([x.domain()[0] - x.domain()[0] * 0.01, x.domain()[1] + x.domain()[1] * 0.01])
+          : x.domain([-1,1]);
+
+          nv.log(y.domain());
+      if (y.domain()[0] === y.domain()[1])
+        y.domain()[0] ?
+            y.domain([y.domain()[0] + y.domain()[0] * 0.01, y.domain()[1] - y.domain()[1] * 0.01])
+          : y.domain([-1,1]);
+
+
+      //store old scales if they exist
+      x0 = x0 || x;
+      y0 = y0 || y;
+
+
+
 
 
 
@@ -5125,6 +5207,295 @@ nv.models.multiBarHorizontalChart = function() {
 
   return chart;
 }
+//TODO: eitehr drastically clean up or deprecate this model
+nv.models.ohlcBar = function() {
+  var margin = {top: 0, right: 0, bottom: 0, left: 0},
+      width = 960,
+      height = 500,
+      id = Math.floor(Math.random() * 10000), //Create semi-unique ID in case user doesn't select one
+      getX = function(d) { return d.x },
+      getY = function(d) { return d.y },
+      getOpen = function(d) { return d.open },
+      getClose = function(d) { return d.close },
+      getHigh = function(d) { return d.high },
+      getLow = function(d) { return d.low },
+      forceX = [],
+      forceY = [],
+      clipEdge = true,
+      color = d3.scale.category20().range(),
+      xDomain, yDomain;
+
+  var x = d3.scale.linear(),
+      y = d3.scale.linear(),
+      xAxis = d3.svg.axis().scale(x).orient('bottom'),
+      yAxis = d3.svg.axis().scale(y).orient('left'),
+      dispatch = d3.dispatch('chartClick', 'elementClick', 'elementDblClick', 'elementMouseover', 'elementMouseout');
+
+
+  function chart(selection) {
+    selection.each(function(data) {
+      var availableWidth = width - margin.left - margin.right,
+          availableHeight = height - margin.top - margin.bottom;
+
+
+      x   .domain(xDomain || d3.extent(data[0].values.map(getX).concat(forceX) ))
+          .range([0, availableWidth]);
+
+      //y   .domain(yDomain || d3.extent(data[0].values.map(getY).concat(forceY) ))
+      y   .domain(yDomain || [
+            d3.min(data[0].values.map(getLow).concat(forceY)),
+            d3.max(data[0].values.map(getHigh).concat(forceY))
+          ])
+          .range([availableHeight, 0]);
+
+      // If scale's domain don't have a range, slightly adjust to make one... so a chart can show a single data point
+      if (x.domain()[0] === x.domain()[1] || y.domain()[0] === y.domain()[1]) singlePoint = true;
+      if (x.domain()[0] === x.domain()[1])
+        x.domain()[0] ?
+            x.domain([x.domain()[0] - x.domain()[0] * 0.01, x.domain()[1] + x.domain()[1] * 0.01])
+          : x.domain([-1,1]);
+
+      if (y.domain()[0] === y.domain()[1])
+        y.domain()[0] ?
+            y.domain([y.domain()[0] + y.domain()[0] * 0.01, y.domain()[1] - y.domain()[1] * 0.01])
+          : y.domain([-1,1]);
+
+
+      var parent = d3.select(this)
+          .on('click', function(d,i) {
+            dispatch.chartClick({
+                data: d,
+                index: i,
+                pos: d3.event,
+                id: id
+            });
+          });
+
+
+      var wrap = d3.select(this).selectAll('g.wrap.historicalStock').data([data[0].values]);
+      var wrapEnter = wrap.enter().append('g').attr('class', 'wrap nvd3 historicalStock');
+      var gEnter = wrapEnter.append('g');
+
+      gEnter.append('g').attr('class', 'ticks');
+
+
+      wrap.attr('width', width)
+          .attr('height', height);
+
+      var g = wrap.select('g')
+          .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+
+
+      wrapEnter.append('defs').append('clipPath')
+          .attr('id', 'chart-clip-path-' + id)
+        .append('rect');
+      wrap.select('#chart-clip-path-' + id + ' rect')
+          .attr('width', availableWidth)
+          .attr('height', availableHeight);
+
+      gEnter
+          .attr('clip-path', clipEdge ? 'url(#chart-clip-path-' + id + ')' : '');
+
+      var shiftWrap = gEnter.append('g').attr('class', 'shiftWrap');
+
+
+
+      var ticks = wrap.select('.ticks').selectAll('.tick')
+          .data(function(d) { return d });
+
+      ticks.exit().remove();
+
+
+      var ticksEnter = ticks.enter().append('path')
+          .attr('class', function(d,i) { return getOpen(d,i) > getClose(d,i) ? 'tick negative' : 'tick positive'})
+          //.attr('fill', function(d,i) { return color[0]; })
+          //.attr('stroke', function(d,i) { return color[0]; })
+          //.attr('x', 0 )
+          //.attr('y', function(d,i) {  return y(Math.max(0, getY(d,i))) })
+          //.attr('height', function(d,i) { return Math.abs(y(getY(d,i)) - y(0)) })
+          .on('mouseover', function(d,i) {
+            d3.select(this).classed('hover', true);
+            dispatch.elementMouseover({
+                point: d,
+                series: data[0],
+                pos: [x(getX(d,i)), y(getY(d,i))],  // TODO: Figure out why the value appears to be shifted
+                pointIndex: i,
+                seriesIndex: 0,
+                e: d3.event
+            });
+
+          })
+          .on('mouseout', function(d,i) {
+                d3.select(this).classed('hover', false);
+                dispatch.elementMouseout({
+                    point: d,
+                    series: data[0],
+                    pointIndex: i,
+                    seriesIndex: 0,
+                    e: d3.event
+                });
+          })
+          .on('click', function(d,i) {
+                dispatch.elementClick({
+                    //label: d[label],
+                    value: getY(d,i),
+                    data: d,
+                    index: i,
+                    pos: [x(getX(d,i)), y(getY(d,i))],
+                    e: d3.event,
+                    id: id
+                });
+              d3.event.stopPropagation();
+          })
+          .on('dblclick', function(d,i) {
+              dispatch.elementDblClick({
+                  //label: d[label],
+                  value: getY(d,i),
+                  data: d,
+                  index: i,
+                  pos: [x(getX(d,i)), y(getY(d,i))],
+                  e: d3.event,
+                  id: id
+              });
+              d3.event.stopPropagation();
+          });
+
+      ticks
+          .attr('class', function(d,i) { return getOpen(d,i) > getClose(d,i) ? 'tick negative' : 'tick positive'})
+          .attr('transform', function(d,i) { return 'translate(' + x(getX(d,i)) + ',' + y(getHigh(d,i)) + ')'; })  
+          .attr('d', function(d,i) {
+            var w = (availableWidth / data[0].values.length) * .9;
+            //nv.log(this, getOpen(d,i), getClose(d,i), y(getOpen(d,i)), y(getClose(d,i)));
+            return 'm0,0l0,' + (y(getOpen(d,i)) - y(getHigh(d,i))) + 'l' + (-w/2) + ',0l' + (w/2) + ',0l0,' + (y(getLow(d,i)) - y(getOpen(d,i))) +'l0,'+ (y(getClose(d,i)) - y(getLow(d,i))) +'l' + (w/2) + ',0l' + (-w/2) + ',0z';
+          })
+          //.attr('width', (availableWidth / data[0].values.length) * .9 )
+
+
+      //d3.transition(ticks)
+          //.attr('y', function(d,i) {  return y(Math.max(0, getY(d,i))) })
+          //.attr('height', function(d,i) { return Math.abs(y(getY(d,i)) - y(0)) });
+          //.order();  // not sure if this makes any sense for this model
+
+    });
+
+    return chart;
+  }
+
+
+  chart.dispatch = dispatch;
+
+  chart.x = function(_) {
+    if (!arguments.length) return getX;
+    getX = _;
+    return chart;
+  };
+
+  chart.y = function(_) {
+    if (!arguments.length) return getY;
+    getY = _;
+    return chart;
+  };
+
+  chart.open = function(_) {
+    if (!arguments.length) return getOpen;
+    getOpen = _;
+    return chart;
+  };
+
+  chart.close = function(_) {
+    if (!arguments.length) return getClose;
+    getClose = _;
+    return chart;
+  };
+
+  chart.high = function(_) {
+    if (!arguments.length) return getHigh;
+    getHigh = _;
+    return chart;
+  };
+
+  chart.low = function(_) {
+    if (!arguments.length) return getLow;
+    getLow = _;
+    return chart;
+  };
+
+  chart.margin = function(_) {
+    if (!arguments.length) return margin;
+    margin = _;
+    return chart;
+  };
+
+  chart.width = function(_) {
+    if (!arguments.length) return width;
+    width = _;
+    return chart;
+  };
+
+  chart.height = function(_) {
+    if (!arguments.length) return height;
+    height = _;
+    return chart;
+  };
+
+  chart.xScale = function(_) {
+    if (!arguments.length) return x;
+    x = _;
+    return chart;
+  };
+
+  chart.yScale = function(_) {
+    if (!arguments.length) return y;
+    y = _;
+    return chart;
+  };
+
+  chart.xDomain = function(_) {
+    if (!arguments.length) return xDomain;
+    xDomain = _;
+    return chart;
+  };
+
+  chart.yDomain = function(_) {
+    if (!arguments.length) return yDomain;
+    yDomain = _;
+    return chart;
+  };
+
+  chart.forceX = function(_) {
+    if (!arguments.length) return forceX;
+    forceX = _;
+    return chart;
+  };
+
+  chart.forceY = function(_) {
+    if (!arguments.length) return forceY;
+    forceY = _;
+    return chart;
+  };
+
+  chart.clipEdge = function(_) {
+    if (!arguments.length) return clipEdge;
+    clipEdge = _;
+    return chart;
+  };
+
+  chart.color = function(_) {
+    if (!arguments.length) return color;
+    color = _;
+    return chart;
+  };
+
+  chart.id = function(_) {
+    if (!arguments.length) return id;
+    id = _;
+    return chart;
+  };
+
+
+
+  return chart;
+}
 
 nv.models.pie = function() {
   var margin = {top: 0, right: 0, bottom: 0, left: 0},
@@ -5589,6 +5960,7 @@ nv.models.scatter = function() {
    ,  xDomain     = null // Override x domain (skips the calculation from data)
    ,  yDomain     = null // Override y domain
    ,  sizeDomain  = null // Override point size domain
+   ;  singlePoint = false
    ,  dispatch    = d3.dispatch('elementClick', 'elementMouseover', 'elementMouseout')
    ;
 
@@ -5645,6 +6017,19 @@ nv.models.scatter = function() {
       z   .domain(sizeDomain || d3.extent(seriesData.map(function(d) { return d.size }).concat(forceSize)))
           .range([16, 256]);
 
+      // If scale's domain don't have a range, slightly adjust to make one... so a chart can show a single data point
+      if (x.domain()[0] === x.domain()[1] || y.domain()[0] === y.domain()[1]) singlePoint = true;
+      if (x.domain()[0] === x.domain()[1])
+        x.domain()[0] ?
+            x.domain([x.domain()[0] - x.domain()[0] * 0.01, x.domain()[1] + x.domain()[1] * 0.01])
+          : x.domain([-1,1]);
+
+      if (y.domain()[0] === y.domain()[1])
+        y.domain()[0] ?
+            y.domain([y.domain()[0] + y.domain()[0] * 0.01, y.domain()[1] - y.domain()[1] * 0.01])
+          : y.domain([-1,1]);
+
+
       x0 = x0 || x;
       y0 = y0 || y;
       z0 = z0 || z;
@@ -5656,7 +6041,7 @@ nv.models.scatter = function() {
       // Setup containers and skeleton of chart
 
       var wrap = container.selectAll('g.wrap.scatter').data([data]);
-      var wrapEnter = wrap.enter().append('g').attr('class', 'wrap nvd3 scatter chart-' +id);
+      var wrapEnter = wrap.enter().append('g').attr('class', 'wrap nvd3 scatter chart-' + id + (singlePoint ? ' single-point' : ''));
       var defsEnter = wrapEnter.append('defs');
       var gEnter = wrapEnter.append('g');
       var g = wrap.select('g');
@@ -5997,6 +6382,12 @@ nv.models.scatter = function() {
     return chart;
   };
 
+  chart.singlePoint = function(_) {
+    if (!arguments.length) return singlePoint;
+    singlePoint = _;
+    return chart;
+  };
+
   //============================================================
 
 
@@ -6026,10 +6417,8 @@ nv.models.scatterChart = function() {
     , tooltips     = true
     , tooltipX     = function(key, x, y) { return '<strong>' + x + '</strong>' }
     , tooltipY     = function(key, x, y) { return '<strong>' + y + '</strong>' }
-    , tooltip      = function(key, x, y, e, graph) {
-        return '<h3>' + key + '</h3>' +
-               '<p>' +  y + ' at ' + x + '</p>'
-      }
+    //, tooltip      = function(key, x, y) { return '<h3>' + key + '</h3>' }
+    , tooltip      = null
     , scatter      = nv.models.scatter().xScale(x).yScale(y)
     , xAxis        = nv.models.axis().orient('bottom').tickPadding(10)
     , yAxis        = nv.models.axis().orient('left').tickPadding(10)
@@ -6052,21 +6441,21 @@ nv.models.scatterChart = function() {
   var showTooltip = function(e, offsetElement) {
     //TODO: make tooltip style an option between single or dual on axes (maybe on all charts with axes?)
 
-    //var left = e.pos[0] + ( offsetElement.offsetLeft || 0 ),
-        //top = e.pos[1] + ( offsetElement.offsetTop || 0),
-    var leftX = e.pos[0] + ( offsetElement.offsetLeft || 0 ),
+    var left = e.pos[0] + ( offsetElement.offsetLeft || 0 ),
+        top = e.pos[1] + ( offsetElement.offsetTop || 0),
+        leftX = e.pos[0] + ( offsetElement.offsetLeft || 0 ),
         topX = y.range()[0] + margin.top + ( offsetElement.offsetTop || 0),
         leftY = x.range()[0] + margin.left + ( offsetElement.offsetLeft || 0 ),
         topY = e.pos[1] + ( offsetElement.offsetTop || 0),
         xVal = xAxis.tickFormat()(scatter.x()(e.point, e.pointIndex)),
-        yVal = yAxis.tickFormat()(scatter.y()(e.point, e.pointIndex)),
-        contentX = tooltipX(e.series.key, xVal, yVal, e, chart),
-        contentY = tooltipY(e.series.key, xVal, yVal, e, chart);
-        //content = tooltip(e.series.key, xVal, yVal, e, chart);
+        yVal = yAxis.tickFormat()(scatter.y()(e.point, e.pointIndex));
 
-    nv.tooltip.show([leftX, topX], contentX, 'n', 1);
-    nv.tooltip.show([leftY, topY], contentY, 'e', 1);
-    //nv.tooltip.show([left, top], content, e.value < 0 ? 'n' : 's');
+      if( tooltipX != null )
+          nv.tooltip.show([leftX, topX], tooltipX(e.series.key, xVal, yVal, e, chart), 'n', 1, null, 'x-nvtooltip');
+      if( tooltipY != null )
+          nv.tooltip.show([leftY, topY], tooltipY(e.series.key, xVal, yVal, e, chart), 'e', 1, null, 'y-nvtooltip');
+      if( tooltip != null )
+          nv.tooltip.show([left, top], tooltip(e.series.key, xVal, yVal, e, chart), e.value < 0 ? 'n' : 's');
   };
 
   var controlsData = [
@@ -6912,10 +7301,10 @@ nv.models.stackedArea = function() {
         //------------------------------------------------------------
 
         scatter.dispatch.on('elementMouseover.area', function(e) {
-          g.select('.area-' + e.seriesIndex).classed('hover', true);
+          g.select('.chart-' + id + ' .area-' + e.seriesIndex).classed('hover', true);
         });
         scatter.dispatch.on('elementMouseout.area', function(e) {
-          g.select('.area-' + e.seriesIndex).classed('hover', false);
+          g.select('.chart-' + id + ' .area-' + e.seriesIndex).classed('hover', false);
         });
 
     });

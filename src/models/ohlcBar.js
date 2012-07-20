@@ -1,11 +1,15 @@
 //TODO: eitehr drastically clean up or deprecate this model
-nv.models.historicalBar = function() {
+nv.models.ohlcBar = function() {
   var margin = {top: 0, right: 0, bottom: 0, left: 0},
       width = 960,
       height = 500,
       id = Math.floor(Math.random() * 10000), //Create semi-unique ID in case user doesn't select one
       getX = function(d) { return d.x },
       getY = function(d) { return d.y },
+      getOpen = function(d) { return d.open },
+      getClose = function(d) { return d.close },
+      getHigh = function(d) { return d.high },
+      getLow = function(d) { return d.low },
       forceX = [],
       forceY = [],
       clipEdge = true,
@@ -28,7 +32,11 @@ nv.models.historicalBar = function() {
       x   .domain(xDomain || d3.extent(data[0].values.map(getX).concat(forceX) ))
           .range([0, availableWidth]);
 
-      y   .domain(yDomain || d3.extent(data[0].values.map(getY).concat(forceY) )) 
+      //y   .domain(yDomain || d3.extent(data[0].values.map(getY).concat(forceY) ))
+      y   .domain(yDomain || [
+            d3.min(data[0].values.map(getLow).concat(forceY)),
+            d3.max(data[0].values.map(getHigh).concat(forceY))
+          ])
           .range([availableHeight, 0]);
 
       // If scale's domain don't have a range, slightly adjust to make one... so a chart can show a single data point
@@ -55,11 +63,11 @@ nv.models.historicalBar = function() {
           });
 
 
-      var wrap = d3.select(this).selectAll('g.wrap.bar').data([data[0].values]);
-      var wrapEnter = wrap.enter().append('g').attr('class', 'wrap nvd3 bar');
+      var wrap = d3.select(this).selectAll('g.wrap.historicalStock').data([data[0].values]);
+      var wrapEnter = wrap.enter().append('g').attr('class', 'wrap nvd3 historicalStock');
       var gEnter = wrapEnter.append('g');
 
-      gEnter.append('g').attr('class', 'bars');
+      gEnter.append('g').attr('class', 'ticks');
 
 
       wrap.attr('width', width)
@@ -83,18 +91,19 @@ nv.models.historicalBar = function() {
 
 
 
-      var bars = wrap.select('.bars').selectAll('.bar')
+      var ticks = wrap.select('.ticks').selectAll('.tick')
           .data(function(d) { return d });
 
-      bars.exit().remove();
+      ticks.exit().remove();
 
 
-      var barsEnter = bars.enter().append('svg:rect')
-          .attr('class', function(d,i) { return getY(d,i) < 0 ? 'bar negative' : 'bar positive'})
-          .attr('fill', function(d,i) { return color[0]; })
-          .attr('x', 0 )
-          .attr('y', function(d,i) {  return y(Math.max(0, getY(d,i))) })
-          .attr('height', function(d,i) { return Math.abs(y(getY(d,i)) - y(0)) })
+      var ticksEnter = ticks.enter().append('path')
+          .attr('class', function(d,i) { return getOpen(d,i) > getClose(d,i) ? 'tick negative' : 'tick positive'})
+          //.attr('fill', function(d,i) { return color[0]; })
+          //.attr('stroke', function(d,i) { return color[0]; })
+          //.attr('x', 0 )
+          //.attr('y', function(d,i) {  return y(Math.max(0, getY(d,i))) })
+          //.attr('height', function(d,i) { return Math.abs(y(getY(d,i)) - y(0)) })
           .on('mouseover', function(d,i) {
             d3.select(this).classed('hover', true);
             dispatch.elementMouseover({
@@ -142,16 +151,20 @@ nv.models.historicalBar = function() {
               d3.event.stopPropagation();
           });
 
-      bars
-          .attr('class', function(d,i) { return getY(d,i) < 0 ? 'bar negative' : 'bar positive'})
-          .attr('transform', function(d,i) { return 'translate(' + (x(getX(d,i)) - ((availableWidth / data[0].values.length) * .5)) + ',0)'; })  //TODO: better width calculations that don't assume always uniform data spacing;w
+      ticks
+          .attr('class', function(d,i) { return getOpen(d,i) > getClose(d,i) ? 'tick negative' : 'tick positive'})
+          .attr('transform', function(d,i) { return 'translate(' + x(getX(d,i)) + ',' + y(getHigh(d,i)) + ')'; })  
+          .attr('d', function(d,i) {
+            var w = (availableWidth / data[0].values.length) * .9;
+            //nv.log(this, getOpen(d,i), getClose(d,i), y(getOpen(d,i)), y(getClose(d,i)));
+            return 'm0,0l0,' + (y(getOpen(d,i)) - y(getHigh(d,i))) + 'l' + (-w/2) + ',0l' + (w/2) + ',0l0,' + (y(getLow(d,i)) - y(getOpen(d,i))) +'l0,'+ (y(getClose(d,i)) - y(getLow(d,i))) +'l' + (w/2) + ',0l' + (-w/2) + ',0z';
+          })
+          //.attr('width', (availableWidth / data[0].values.length) * .9 )
 
-          .attr('width', (availableWidth / data[0].values.length) * .9 )
 
-
-      d3.transition(bars)
-          .attr('y', function(d,i) {  return y(Math.max(0, getY(d,i))) })
-          .attr('height', function(d,i) { return Math.abs(y(getY(d,i)) - y(0)) });
+      //d3.transition(ticks)
+          //.attr('y', function(d,i) {  return y(Math.max(0, getY(d,i))) })
+          //.attr('height', function(d,i) { return Math.abs(y(getY(d,i)) - y(0)) });
           //.order();  // not sure if this makes any sense for this model
 
     });
@@ -171,6 +184,30 @@ nv.models.historicalBar = function() {
   chart.y = function(_) {
     if (!arguments.length) return getY;
     getY = _;
+    return chart;
+  };
+
+  chart.open = function(_) {
+    if (!arguments.length) return getOpen;
+    getOpen = _;
+    return chart;
+  };
+
+  chart.close = function(_) {
+    if (!arguments.length) return getClose;
+    getClose = _;
+    return chart;
+  };
+
+  chart.high = function(_) {
+    if (!arguments.length) return getHigh;
+    getHigh = _;
+    return chart;
+  };
+
+  chart.low = function(_) {
+    if (!arguments.length) return getLow;
+    getLow = _;
     return chart;
   };
 

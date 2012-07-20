@@ -107,11 +107,34 @@ svg .title {
 */
 
 .brush .extent {
-  stroke: #666;
   fill-opacity: .125;
   shape-rendering: crispEdges;
 }
 
+
+/**********
+*  Historical Stock
+*/
+
+.nvd3.historicalStockChart .dragTarget {
+  fill-opacity: 0;
+  stroke: none;
+  cursor: move;
+}
+
+.nvd3.historicalStockChart .brush .extent {
+  /*
+  cursor: ew-resize !important;
+  */
+  fill-opacity: 0 !important;
+}
+
+.nvd3.historicalStockChart .brushBackground rect {
+  stroke: #000;
+  stroke-width: .4;
+  fill: #fff;
+  fill-opacity: .5;
+}
 
 
 /**********
@@ -290,6 +313,23 @@ svg .title {
   */
 }
 
+.nvd3 .groups path.area {
+  stroke: none;
+  stroke-linecap: round;
+  shape-rendering: geometricPrecision;
+
+  /*
+  stroke-width: 2.5px;
+  transition: stroke-width 250ms linear;
+  -moz-transition: stroke-width 250ms linear;
+  -webkit-transition: stroke-width 250ms linear;
+
+  transition-delay: 250ms
+  -moz-transition-delay: 250ms;
+  -webkit-transition-delay: 250ms;
+  */
+}
+
 .nvd3 .line.hover path {
   stroke-width: 6px;
 }
@@ -304,6 +344,11 @@ svg .title {
 .nvd3.line .nvd3.scatter .groups .point {
   fill-opacity: 0;
   stroke-opacity: 0;
+}
+
+.nvd3.scatter.single-point .groups .point {
+  fill-opacity: .5;
+  stroke-opacity: .5;
 }
 
 
@@ -484,6 +529,30 @@ svg .title {
   stroke: #f66;
 }
 
+
+/**********
+* historical stock
+*/
+
+.nvd3.historicalStock .ticks .tick {
+  stroke-width: 2px;
+}
+
+.nvd3.historicalStock .ticks .tick.hover {
+  stroke-width: 4px;
+}
+
+.nvd3.historicalStock .ticks .tick.positive {
+ stroke: #2ca02c;
+}
+
+.nvd3.historicalStock .ticks .tick.negative {
+ stroke: #d62728;
+}
+
+.nvd3.historicalStockChart .axis .axislabel {
+  font-weight: bold;
+}
 
 
 /**********
