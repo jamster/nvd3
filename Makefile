@@ -29,6 +29,7 @@ JS_FILES = \
 	src/models/sparklinePlus.js \
 	src/models/stackedArea.js \
 	src/models/stackedAreaChart.js \
+	src/models/multiAxisLineChart.js \
 	src/outro.js
 
 JS_COMPILER = \
