@@ -3,14 +3,16 @@ nv.models.discreteBarChart = function() {
   var margin = {top: 10, right: 10, bottom: 50, left: 60},
       width = null,
       height = null,
-      color = d3.scale.category20().range(),
+      color = nv.utils.getColor(), //a function that gets color for a datum
       staggerLabels = false,
       rotateLabels = 0,
       tooltips = true,
       tooltip = function(key, x, y, e, graph) { 
         return '<h3>' + x + '</h3>' +
                '<p>' +  y + '</p>'
-      };
+      },
+      noData = "No Data Available."
+      ;
 
 
   var discretebar = nv.models.discreteBar(),
@@ -52,18 +54,37 @@ nv.models.discreteBarChart = function() {
                              - margin.top - margin.bottom;
 
 
+      //------------------------------------------------------------
+      // Display No Data message if there's nothing to show.
+
+      if (!data || !data.length || !data.filter(function(d) { return d.values.length }).length) {
+        container.append('text')
+          .attr('class', 'nvd3 nv-noData')
+          .attr('x', availableWidth / 2)
+          .attr('y', availableHeight / 2)
+          .attr('dy', '-.7em')
+          .style('text-anchor', 'middle')
+          .text(noData);
+          return chart;
+      } else {
+        container.select('.nv-noData').remove();
+      }
+
+      //------------------------------------------------------------
+
+
       discretebar
         .width(availableWidth)
         .height(availableHeight);
 
 
-      var wrap = container.selectAll('g.wrap.discreteBarWithAxes').data([data]);
-      var gEnter = wrap.enter().append('g').attr('class', 'wrap nvd3 discreteBarWithAxes').append('g');
+      var wrap = container.selectAll('g.nv-wrap.nv-discreteBarWithAxes').data([data]);
+      var gEnter = wrap.enter().append('g').attr('class', 'nvd3 nv-wrap nv-discreteBarWithAxes').append('g');
       var defsEnter = gEnter.append('defs');
 
-      gEnter.append('g').attr('class', 'x axis');
-      gEnter.append('g').attr('class', 'y axis');
-      gEnter.append('g').attr('class', 'barsWrap');
+      gEnter.append('g').attr('class', 'nv-x nv-axis');
+      gEnter.append('g').attr('class', 'nv-y nv-axis');
+      gEnter.append('g').attr('class', 'nv-barsWrap');
 
 
 
@@ -72,7 +93,7 @@ nv.models.discreteBarChart = function() {
 
       g.attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
 
-      var barsWrap = g.select('.barsWrap')
+      var barsWrap = g.select('.nv-barsWrap')
           .datum(data.filter(function(d) { return !d.disabled }))
 
 
@@ -80,10 +101,10 @@ nv.models.discreteBarChart = function() {
 
 
       defsEnter.append('clipPath')
-          .attr('id', 'x-label-clip-' + discretebar.id())
+          .attr('id', 'nv-x-label-clip-' + discretebar.id())
         .append('rect')
 
-      g.select('#x-label-clip-' + discretebar.id() + ' rect')
+      g.select('#nv-x-label-clip-' + discretebar.id() + ' rect')
           .attr('width', x.rangeBand() * (staggerLabels ? 2 : 1))
           .attr('height', 16)
           .attr('x', -x.rangeBand() / (staggerLabels ? 1 : 2 ));
@@ -93,14 +114,14 @@ nv.models.discreteBarChart = function() {
         .ticks( availableWidth / 100 )
         .tickSize(-availableHeight, 0);
 
-      g.select('.x.axis')
+      g.select('.nv-x.nv-axis')
           .attr('transform', 'translate(0,' + (y.range()[0] + ((discretebar.showValues() && y.domain()[0] < 0) ? 16 : 0)) + ')')
       //d3.transition(g.select('.x.axis'))
-      g.select('.x.axis').transition().duration(0)
+      g.select('.nv-x.nv-axis').transition().duration(0)
           .call(xAxis);
 
 
-      var xTicks = g.select('.x.axis').selectAll('g');
+      var xTicks = g.select('.nv-x.nv-axis').selectAll('g');
 
       if (staggerLabels)
         xTicks
@@ -115,14 +136,14 @@ nv.models.discreteBarChart = function() {
 
       xTicks
           .selectAll('text')
-          .attr('clip-path', function(d,i,j) { return rotateLabels ? '' : 'url(#x-label-clip-' + discretebar.id() + ')' });
+          .attr('clip-path', function(d,i,j) { return rotateLabels ? '' : 'url(#nv-x-label-clip-' + discretebar.id() + ')' });
 
 
       yAxis
         .ticks( availableHeight / 36 )
         .tickSize( -availableWidth, 0);
 
-      d3.transition(g.select('.y.axis'))
+      d3.transition(g.select('.nv-y.nv-axis'))
           .call(yAxis);
 
 
@@ -176,8 +197,8 @@ nv.models.discreteBarChart = function() {
 
   chart.color = function(_) {
     if (!arguments.length) return color;
-    color = _;
-    discretebar.color(_);
+    color = nv.utils.getColor(_);
+    discretebar.color(color);
     return chart;
   };
 
@@ -202,6 +223,12 @@ nv.models.discreteBarChart = function() {
   chart.tooltipContent = function(_) {
     if (!arguments.length) return tooltip;
     tooltip = _;
+    return chart;
+  };
+
+  chart.noData = function(_) {
+    if (!arguments.length) return noData;
+    noData = _;
     return chart;
   };
 

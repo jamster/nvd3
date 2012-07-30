@@ -4,12 +4,14 @@ nv.models.pieChart = function() {
       width = null,
       height = null,
       showLegend = true,
-      color = d3.scale.category20().range(),
+      color = nv.utils.defaultColor(),
       tooltips = true,
-      tooltip = function(key, y, e, graph) { 
+      tooltip = function(key, y, e, graph) {
         return '<h3>' + key + '</h3>' +
                '<p>' +  y + '</p>'
-      };
+      },
+      noData = "No Data Available."
+      ;
 
 
   var pie = nv.models.pie(),
@@ -39,12 +41,31 @@ nv.models.pieChart = function() {
                              - margin.top - margin.bottom;
 
 
+      //------------------------------------------------------------
+      // Display No Data message if there's nothing to show.
 
-      var wrap = container.selectAll('g.wrap.pieChart').data([data]);
-      var gEnter = wrap.enter().append('g').attr('class', 'wrap nvd3 pieChart').append('g');
+      if (!data || !data.length || !data.filter(function(d) { return d.values.length }).length) {
+        container.append('text')
+          .attr('class', 'nvd3 nv-noData')
+          .attr('x', availableWidth / 2)
+          .attr('y', availableHeight / 2)
+          .attr('dy', '-.7em')
+          .style('text-anchor', 'middle')
+          .text(noData);
+          return chart;
+      } else {
+        container.select('.nv-noData').remove();
+      }
 
-      gEnter.append('g').attr('class', 'pieWrap');
-      gEnter.append('g').attr('class', 'legendWrap');
+      //------------------------------------------------------------
+
+
+
+      var wrap = container.selectAll('g.nv-wrap.nv-pieChart').data([data]);
+      var gEnter = wrap.enter().append('g').attr('class', 'nvd3 nv-wrap nv-pieChart').append('g');
+
+      gEnter.append('g').attr('class', 'nv-pieWrap');
+      gEnter.append('g').attr('class', 'nv-legendWrap');
 
       var g = wrap.select('g');
 
@@ -54,7 +75,7 @@ nv.models.pieChart = function() {
           .width( availableWidth )
           .key(pie.x());
 
-        wrap.select('.legendWrap')
+        wrap.select('.nv-legendWrap')
             .datum(pie.values()(data[0]))
             .call(legend);
 
@@ -64,7 +85,7 @@ nv.models.pieChart = function() {
                              - margin.top - margin.bottom;
         }
 
-        wrap.select('.legendWrap')
+        wrap.select('.nv-legendWrap')
             .attr('transform', 'translate(0,' + (-margin.top) +')');
       }
 
@@ -80,7 +101,7 @@ nv.models.pieChart = function() {
 
       g.attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
 
-      var pieWrap = g.select('.pieWrap')
+      var pieWrap = g.select('.nv-pieWrap')
           .datum(data)
           //.datum(data.filter(function(d) { return !d.disabled }))
 
@@ -94,7 +115,7 @@ nv.models.pieChart = function() {
         if (!pie.values()(data[0]).filter(function(d) { return !d.disabled }).length) {
           pie.values()(data[0]).map(function(d) {
             d.disabled = false;
-            wrap.selectAll('.series').classed('disabled', false);
+            wrap.selectAll('.nv-series').classed('disabled', false);
             return d;
           });
         }
@@ -127,7 +148,7 @@ nv.models.pieChart = function() {
   chart.dispatch = dispatch;
   chart.pie = pie; // really just makign the accessible for discretebar.dispatch, may rethink slightly
 
-  d3.rebind(chart, pie, 'values', 'x', 'y', 'id', 'showLabels', 'donut', 'labelThreshold');
+  d3.rebind(chart, pie, 'valueFormat', 'values', 'x', 'y', 'id', 'showLabels', 'donut', 'labelThreshold');
 
 
   chart.margin = function(_) {
@@ -150,9 +171,9 @@ nv.models.pieChart = function() {
 
   chart.color = function(_) {
     if (!arguments.length) return color;
-    color = _;
-    legend.color(_);
-    pie.color(_);
+    color = nv.utils.getColor(_);
+    legend.color(color);
+    pie.color(color);
     return chart;
   };
 
@@ -171,6 +192,12 @@ nv.models.pieChart = function() {
   chart.tooltipContent = function(_) {
     if (!arguments.length) return tooltip;
     tooltip = _;
+    return chart;
+  };
+
+  chart.noData = function(_) {
+    if (!arguments.length) return noData;
+    noData = _;
     return chart;
   };
 
