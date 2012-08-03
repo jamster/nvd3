@@ -303,6 +303,7 @@ nv.models.axis = function() {
       axisLabelText = null,
       showMaxMin = true, //TODO: showMaxMin should be disabled on all ordinal scaled axes
       highlightZero = true,
+      rotateLabels = 0,
       rotateYLabel = true;
       margin = {top: 0, right: 0, bottom: 0, left: 0}
 
@@ -366,9 +367,25 @@ nv.models.axis = function() {
           }
           break;
         case 'bottom':
-          axisLabel.enter().append('text').attr('class', 'nv-axislabel')
+        var xLabelMargin = 30;
+        var maxTextWidth = 30;
+        if(rotateLabels%360){
+          var xTicks = g.selectAll('g').select("text");
+          //Calculate the longest xTick width
+          xTicks.each(function(d,i){
+            var width = this.getBBox().width;
+            if(width > maxTextWidth) maxTextWidth = width;
+          });
+          //Convert to radians before calculating sin. Add 30 to margin for healthy padding.
+          var sin = Math.abs(Math.sin(rotateLabels*Math.PI/180));
+          var xLabelMargin = (sin ? sin*maxTextWidth : maxTextWidth)+30;
+          //Rotate all xTicks
+          xTicks.attr('transform', function(d,i,j) { return 'rotate(' + rotateLabels + ' 0,0)' })
+          .attr('text-anchor', rotateLabels%360 > 0 ? 'start' : 'end');
+        }
+        axisLabel.enter().append('text').attr('class', 'nv-axislabel')
               .attr('text-anchor', 'middle')
-              .attr('y', 30);
+              .attr('y', xLabelMargin);
           var w = (scale.range().length==2) ? scale.range()[1] : (scale.range()[scale.range().length-1]+(scale.range()[1]-scale.range()[0]));
           axisLabel
               .attr('x', w/2);
@@ -384,7 +401,8 @@ nv.models.axis = function() {
               .select('text')
                 .attr('dy', '.71em')
                 .attr('y', axis.tickPadding())
-                .attr('text-anchor', 'middle')
+                .attr('transform', function(d,i,j) { return 'rotate(' + rotateLabels + ' 0,0)' })
+                .attr('text-anchor', rotateLabels%360 > 0 ? 'start' : 'end')
                 .text(function(d,i) {
                   return ('' + axis.tickFormat()(d)).match('NaN') ? '' : axis.tickFormat()(d)
                 });
@@ -558,6 +576,11 @@ nv.models.axis = function() {
   	if(!arguments.length) return rotateYLabel;
   	rotateYLabel = _;
   	return chart;
+  }
+  chart.rotateLabels = function(_) {
+    if(!arguments.length) return rotateLabels;
+    rotateLabels = _;
+    return chart;
   }
   chart.margin = function(_) {
   	if(!arguments.length) return margin;
@@ -1368,7 +1391,7 @@ nv.models.cumulativeLineChart = function() {
       height = null,
       showLegend = true,
       tooltips = true,
-      showRescaleToggle = false, //TODO: get rescale y functionality back (need to calculate exten of y for ALL possible re-zero points
+      showRescaleToggle = true, //TODO: get rescale y functionality back (need to calculate exten of y for ALL possible re-zero points
       rescaleY = true,
       tooltip = function(key, x, y, e, graph) {
         return '<h3>' + key + '</h3>' +
@@ -1464,6 +1487,29 @@ nv.models.cumulativeLineChart = function() {
 
       x = lines.xScale();
       y = lines.yScale();
+
+      if (!rescaleY) {
+        var seriesDomains = data
+          .filter(function(series) { return !series.disabled })
+          .map(function(series,i) {
+            var initialDomain = d3.extent(series.values, lines.y());
+
+            return [
+              (initialDomain[0] - initialDomain[1]) / (1 + initialDomain[1]),
+              (initialDomain[1] - initialDomain[0]) / (1 + initialDomain[0])
+            ];
+          });
+
+        var completeDomain = [
+          d3.min(seriesDomains, function(d) { return d[0] }),
+          d3.max(seriesDomains, function(d) { return d[1] })
+        ]
+
+        lines.yDomain(completeDomain);
+      } else {
+        lines.yDomain(null);
+      }
+
 
       dx  .domain([0, data[0].values.length - 1]) //Assumes all series have same length
           .range([0, availableWidth])
@@ -2035,7 +2081,6 @@ nv.models.discreteBarChart = function() {
       height = null,
       color = nv.utils.getColor(), //a function that gets color for a datum
       staggerLabels = false,
-      rotateLabels = 0,
       tooltips = true,
       tooltip = function(key, x, y, e, graph) { 
         return '<h3>' + x + '</h3>' +
@@ -2158,17 +2203,6 @@ nv.models.discreteBarChart = function() {
             .selectAll('text')
             .attr('transform', function(d,i,j) { return 'translate(0,' + (j % 2 == 0 ? '0' : '12') + ')' })
 
-      if (rotateLabels)
-        xTicks
-            .selectAll('text')
-            .attr('transform', function(d,i,j) { return 'rotate(' + rotateLabels + ' 0,0)' })
-            .attr('text-anchor', rotateLabels > 0 ? 'start' : 'end') 
-
-      xTicks
-          .selectAll('text')
-          .attr('clip-path', function(d,i,j) { return rotateLabels ? '' : 'url(#nv-x-label-clip-' + discretebar.id() + ')' });
-
-
       yAxis
         .ticks( availableHeight / 36 )
         .tickSize( -availableWidth, 0);
@@ -2235,12 +2269,6 @@ nv.models.discreteBarChart = function() {
   chart.staggerLabels = function(_) {
     if (!arguments.length) return staggerLabels;
     staggerLabels = _;
-    return chart;
-  };
-
-  chart.rotateLabels = function(_) {
-    if (!arguments.length) return rotateLabels;
-    rotateLabels = _;
     return chart;
   };
 
@@ -3872,19 +3900,29 @@ nv.models.lineWithFocusChart = function() {
       lines
         .width(availableWidth)
         .height(availableHeight)
-        .color(data.map(function(d,i) {
-          return d.color || color(d, i);
-        }).filter(function(d,i) { return !data[i].disabled }));
+        .color(
+          data
+            .map(function(d,i) {
+              return d.color || color(d, i);
+            })
+            .filter(function(d,i) {
+              return !data[i].disabled;
+          })
+        );
 
       lines2
         .defined(lines.defined())
         .width(availableWidth)
         .height(availableHeight2)
-        .x(lines.x())
-        .y(lines.y())
-        .color(data.map(function(d,i) {
-          return d.color || color(d, i);
-        }).filter(function(d,i) { return !data[i].disabled }));
+        .color(
+          data
+            .map(function(d,i) {
+              return d.color || color(d, i);
+            })
+            .filter(function(d,i) {
+              return !data[i].disabled;
+          })
+        );
 
 
       g.attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
@@ -4012,7 +4050,7 @@ nv.models.lineWithFocusChart = function() {
           .attr('transform', 'translate(0,' + y2.range()[0] + ')');
 
 
-      legend.dispatch.on('legendClick', function(d,i) { 
+      legend.dispatch.on('legendClick', function(d,i) {
         d.disabled = !d.disabled;
 
         if (!data.filter(function(d) { return !d.disabled }).length) {
@@ -4121,7 +4159,6 @@ nv.models.lineWithFocusChart = function() {
       }
 
 
-
     });
 
 
@@ -4137,13 +4174,28 @@ nv.models.lineWithFocusChart = function() {
 
   chart.dispatch = dispatch;
   chart.legend = legend;
+  chart.lines = lines;
+  chart.lines2 = lines2;
   chart.xAxis = xAxis;
   chart.yAxis = yAxis;
   chart.x2Axis = x2Axis;
   chart.y2Axis = y2Axis;
 
-  d3.rebind(chart, lines, 'defined', 'isArea', 'x', 'y', 'size', 'xDomain', 'yDomain', 'forceX', 'forceY', 'interactive', 'clipEdge', 'clipVoronoi', 'id');
+  d3.rebind(chart, lines, 'defined', 'isArea', 'size', 'xDomain', 'yDomain', 'forceX', 'forceY', 'interactive', 'clipEdge', 'clipVoronoi', 'id');
 
+  chart.x = function(_) {
+    if (!arguments.length) return lines.x;
+    lines.x(_);
+    lines2.x(_);
+    return chart;
+  };
+
+  chart.y = function(_) {
+    if (!arguments.length) return lines.y;
+    lines.y(_);
+    lines2.y(_);
+    return chart;
+  };
 
   chart.margin = function(_) {
     if (!arguments.length) return margin;
@@ -4224,7 +4276,7 @@ nv.models.lineWithFocusChart = function() {
     return chart;
   };
 
-  
+
   return chart;
 }
 
@@ -4901,6 +4953,12 @@ nv.models.multiBarChart = function() {
     return chart;
   }
 
+  chart.tooltip = function(_) {
+    if (!arguments.length) return tooltip;
+    tooltip = _;
+    return chart;
+  };
+
   chart.tooltips = function(_) {
     if (!arguments.length) return tooltips;
     tooltips = _;
@@ -5304,6 +5362,7 @@ nv.models.multiBarHorizontalChart = function() {
       color = nv.utils.defaultColor(),
       showControls = true,
       showLegend = true,
+      stacked = false,
       tooltips = true,
       tooltip = function(key, x, y, e, graph) { 
         return '<h3>' + key + " - " + x + '</h3>' +
@@ -5313,7 +5372,7 @@ nv.models.multiBarHorizontalChart = function() {
       ;
 
 
-  var multibar = nv.models.multiBarHorizontal().stacked(false),
+  var multibar = nv.models.multiBarHorizontal().stacked(stacked),
       x = multibar.xScale(),
       y = multibar.yScale(),
       xAxis = nv.models.axis().scale(x).orient('left').highlightZero(false).showMaxMin(false),
@@ -5534,7 +5593,7 @@ nv.models.multiBarHorizontalChart = function() {
   chart.xAxis = xAxis;
   chart.yAxis = yAxis;
 
-  d3.rebind(chart, multibar, 'x', 'y', 'xDomain', 'yDomain', 'forceX', 'forceY', 'clipEdge', 'id', 'delay', 'showValues', 'valueFormat');
+  d3.rebind(chart, multibar, 'x', 'y', 'xDomain', 'yDomain', 'forceX', 'forceY', 'clipEdge', 'id', 'delay', 'showValues', 'valueFormat', 'stacked');
 
 
   chart.margin = function(_) {
@@ -5571,6 +5630,12 @@ nv.models.multiBarHorizontalChart = function() {
   chart.showLegend = function(_) {
     if (!arguments.length) return showLegend;
     showLegend = _;
+    return chart;
+  };
+
+  chart.tooltip = function(_) {
+    if (!arguments.length) return tooltip;
+    tooltip = _;
     return chart;
   };
 
@@ -6378,6 +6443,7 @@ nv.models.pie = function() {
       color = nv.utils.defaultColor(),
       valueFormat = d3.format(',.2f'),
       showLabels = true,
+      donutLabelsOutside = false,
       labelThreshold = .02, //if slice percentage is under this, don't show label
       donut = false;
 
@@ -6491,27 +6557,60 @@ nv.models.pie = function() {
 
         if (showLabels) {
           // This does the normal label
-          ae.append('text')
-            .attr('transform', function(d) {
-               d.outerRadius = radius + 10; // Set Outer Coordinate
-               d.innerRadius = radius + 15; // Set Inner Coordinate
-               return 'translate(' + arc.centroid(d) + ')';
-            })
-            .style('text-anchor', 'middle') //center the text on it's origin
-            .style('fill', '#000');
+          var labelsArc = arc;
+          if (donutLabelsOutside) {
+            labelsArc = d3.svg.arc().outerRadius(arc.outerRadius())
+          }
 
-          d3.transition(slices.select('text'))
-              //.ease('bounce')
-              .attr('transform', function(d) {
-                 d.outerRadius = radius + 10; // Set Outer Coordinate
-                 d.innerRadius = radius + 15; // Set Inner Coordinate
-                 return 'translate(' + arc.centroid(d) + ')';
-              })
-              //.style('font', 'bold 12px Arial') // font style's should be set in css!
-              .text(function(d, i) { 
-                var percent = (d.endAngle - d.startAngle) / (2 * Math.PI);
-                return (d.value && percent > labelThreshold) ? getX(d.data) : ''; 
+          ae.append("g").classed("nv-label", true)
+            .each(function(d, i) {
+              var group = d3.select(this);
+
+              group
+                .attr('transform', function(d) {
+                   d.outerRadius = radius + 10; // Set Outer Coordinate
+                   d.innerRadius = radius + 15; // Set Inner Coordinate
+                   return 'translate(' + labelsArc.centroid(d) + ')'
+                });
+
+              group.append('rect')
+                  .style('stroke', '#fff')
+                  .style('fill', '#fff')
+                  .attr("rx", 3)
+                  .attr("ry", 3);
+
+              group.append('text')
+                  .style('text-anchor', 'middle') //center the text on it's origin
+                  .style('fill', '#000')
+
+
+          });
+
+          slices.select(".nv-label").transition()
+            .attr('transform', function(d) {
+                d.outerRadius = radius + 10; // Set Outer Coordinate
+                d.innerRadius = radius + 15; // Set Inner Coordinate
+                return 'translate(' + labelsArc.centroid(d) + ')';
+            });
+
+          slices.each(function(d, i) {
+            var slice = d3.select(this);
+
+            slice
+              .select(".nv-label text")
+                .text(function(d, i) {
+                  var percent = (d.endAngle - d.startAngle) / (2 * Math.PI);
+                  return (d.value && percent > labelThreshold) ? getX(d.data) : '';
+                });
+
+            var textBox = slice.select('text').node().getBBox();
+            slice.select(".nv-label rect")
+              .attr("width", textBox.width + 10)
+              .attr("height", textBox.height + 10)
+              .attr("transform", function() {
+                return "translate(" + [textBox.x - 5, textBox.y - 5] + ")";
               });
+          });
         }
 
 
@@ -6585,6 +6684,12 @@ nv.models.pie = function() {
   chart.showLabels = function(_) {
     if (!arguments.length) return showLabels;
     showLabels = _;
+    return chart;
+  };
+
+  chart.donutLabelsOutside = function(_) {
+    if (!arguments.length) return donutLabelsOutside;
+    donutLabelsOutside = _;
     return chart;
   };
 
@@ -6667,7 +6772,7 @@ nv.models.pieChart = function() {
       //------------------------------------------------------------
       // Display No Data message if there's nothing to show.
 
-      if (!data || !data.length || !data.filter(function(d) { return d.values.length }).length) {
+      if (!data || !data.length) {
         container.append('text')
           .attr('class', 'nvd3 nv-noData')
           .attr('x', availableWidth / 2)
@@ -6771,7 +6876,7 @@ nv.models.pieChart = function() {
   chart.dispatch = dispatch;
   chart.pie = pie; // really just makign the accessible for discretebar.dispatch, may rethink slightly
 
-  d3.rebind(chart, pie, 'valueFormat', 'values', 'x', 'y', 'id', 'showLabels', 'donut', 'labelThreshold');
+  d3.rebind(chart, pie, 'valueFormat', 'values', 'x', 'y', 'id', 'showLabels', 'donutLabelsOutside', 'donut', 'labelThreshold');
 
 
   chart.margin = function(_) {
@@ -6837,7 +6942,7 @@ nv.models.scatter = function() {
   var margin      = {top: 0, right: 0, bottom: 0, left: 0}
    ,  width       = 960
    ,  height      = 500
-   ,  color       = nv.utils.defaultColor() // chooses color 
+   ,  color       = nv.utils.defaultColor() // chooses color
    ,  id          = Math.floor(Math.random() * 100000) //Create semi-unique ID incase user doesn't selet one
    ,  x           = d3.scale.linear()
    ,  y           = d3.scale.linear()
@@ -7084,6 +7189,7 @@ nv.models.scatter = function() {
               .type(getShape)
               .size(function(d,i) { return z(getSize(d,i)) })
           );
+      points.exit().remove();
       d3.transition(groups.exit().selectAll('path.nv-point'))
           .attr('transform', function(d,i) {
             return 'translate(' + x(getX(d,i)) + ',' + y(getY(d,i)) + ')'
@@ -8672,6 +8778,7 @@ nv.models.stackedAreaChart = function() {
     if (!arguments.length) return color;
     color = nv.utils.getColor(_);
     legend.color(color);
+    stacked.color(color);
     return chart;
   };
 
