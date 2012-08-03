@@ -18,8 +18,8 @@ nv.models.pieChart = function() {
 
 
   var showTooltip = function(e, offsetElement) {
-    var left = e.pos[0] + ( (offsetElement && offsetElement.offsetLeft) || 0 ),
-        top = e.pos[1] + ( (offsetElement && offsetElement.offsetTop) || 0),
+    var left = e.sliceCenter[0] ,
+        top = e.sliceCenter[1] ,
         y = pie.valueFormat()(pie.y()(e.point)),
         content = tooltip(pie.x()(e.point), y, e, chart);
 

@@ -65,12 +65,15 @@ nv.models.pie = function() {
               .attr('class', 'slice')
               .on('mouseover', function(d,i){
                 d3.select(this).classed('hover', true);
+                var rect = this.getBoundingClientRect()
+                var cent = [rect.left + window.pageXOffset + rect.width/2,rect.top + window.pageYOffset+rect.height/2]
                 dispatch.elementMouseover({
                     label: getX(d.data),
                     value: getY(d.data),
                     point: d.data,
                     pointIndex: i,
                     pos: [d3.event.pageX, d3.event.pageY],
+                    sliceCenter: cent,
                     id: id
                 });
               })
