@@ -2892,6 +2892,7 @@ nv.models.legend = function() {
     , getKey = function(d) { return d.key }
     , color = nv.utils.defaultColor()
     , align = true
+    , alignment = "right"
     , dispatch = d3.dispatch('legendClick', 'legendDblclick', 'legendMouseover', 'legendMouseout')
     ;
 
@@ -2993,7 +2994,9 @@ nv.models.legend = function() {
             });
 
         //position legend as far right as possible within the total width
-        g.attr('transform', 'translate(' + (width - margin.right - legendWidth) + ',' + margin.top + ')');
+        if (alignment == "right") {
+          g.attr('transform', 'translate(' + (width - margin.right - legendWidth) + ',' + margin.top + ')');
+        }
 
         height = margin.top + margin.bottom + (Math.ceil(seriesWidths.length / seriesPerRow) * 20);
 
@@ -3071,6 +3074,12 @@ nv.models.legend = function() {
   chart.align = function(_) {
     if (!arguments.length) return align;
     align = _;
+    return chart;
+  };
+
+  chart.alignment = function(_) {
+    if (!arguments.length) return alignment;
+    alignment = _;
     return chart;
   };
 
@@ -9214,7 +9223,7 @@ nv.models.stackedAreaChart = function() {
     , xAxis = nv.models.axis()
     , yAxis = nv.models.axis()
     , legend = nv.models.legend()
-    , controls = nv.models.legend()
+    , controls = nv.models.legend().alignment("left")
     ;
 
   var margin = {top: 30, right: 25, bottom: 50, left: 60}
@@ -9222,6 +9231,7 @@ nv.models.stackedAreaChart = function() {
     , height = null
     , color = nv.utils.defaultColor() // a function that takes in d, i and returns color
     , showControls = true
+    , enabledModes = ['stacked', 'stream', 'expanded']
     , showLegend = true
     , tooltips = true
     , tooltip = function(key, x, y, e, graph) {
@@ -9347,14 +9357,19 @@ nv.models.stackedAreaChart = function() {
 
       if (showControls) {
         var controlsData = [
-          { key: 'Stacked', disabled: stacked.offset() != 'zero' },
-          { key: 'Stream', disabled: stacked.offset() != 'wiggle' },
-          { key: 'Expanded', disabled: stacked.offset() != 'expand' }
+          { key: 'Stacked', mode: 'stacked', disabled: stacked.offset() != 'zero' },
+          { key: 'Stream', mode: 'stream', disabled: stacked.offset() != 'wiggle' },
+          { key: 'Expanded', mode: 'expanded', disabled: stacked.offset() != 'expand' }
         ];
 
         controls.width(280).color(['#444', '#444', '#444']);
+
+        var enabledControlsData = controlsData.filter(function(d) {
+          return enabledModes.indexOf(d.mode) != -1;
+        });
+
         g.select('.nv-controlsWrap')
-            .datum(controlsData)
+            .datum(enabledControlsData)
             .attr('transform', 'translate(0,' + (-margin.top) +')')
             .call(controls);
       }
@@ -9544,6 +9559,12 @@ nv.models.stackedAreaChart = function() {
   chart.showControls = function(_) {
     if (!arguments.length) return showControls;
     showControls = _;
+    return chart;
+  };
+
+  chart.enabledModes = function(_) {
+    if (!arguments.length) return enabledModes;
+    enabledModes = _;
     return chart;
   };
 
