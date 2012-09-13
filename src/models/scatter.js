@@ -6,31 +6,33 @@ nv.models.scatter = function() {
   //------------------------------------------------------------
 
   var margin      = {top: 0, right: 0, bottom: 0, left: 0}
-   ,  width       = 960
-   ,  height      = 500
-   ,  color       = nv.utils.defaultColor() // chooses color
-   ,  id          = Math.floor(Math.random() * 100000) //Create semi-unique ID incase user doesn't selet one
-   ,  x           = d3.scale.linear()
-   ,  y           = d3.scale.linear()
-   ,  z           = d3.scale.linear() //linear because d3.svg.shape.size is treated as area
-   ,  getX        = function(d) { return d.x } // accessor to get the x value
-   ,  getY        = function(d) { return d.y } // accessor to get the y value
-   ,  getSize     = function(d) { return d.size } // accessor to get the point size
-   ,  getShape    = function(d) { return d.shape || 'circle' } // accessor to get point shape
-   ,  forceX      = [] // List of numbers to Force into the X scale (ie. 0, or a max / min, etc.)
-   ,  forceY      = [] // List of numbers to Force into the Y scale
-   ,  forceSize   = [] // List of numbers to Force into the Size scale
-   ,  interactive = true // If true, plots a voronoi overlay for advanced point interection
-   ,  pointActive = function(d) { return !d.notActive } // any points that return false will be filtered out
-   ,  clipEdge    = false // if true, masks points within x and y scale
-   ,  clipVoronoi = true // if true, masks each point with a circle... can turn off to slightly increase performance
-   ,  clipRadius  = function() { return 25 } // function to get the radius for voronoi point clips
-   ,  xDomain     = null // Override x domain (skips the calculation from data)
-   ,  yDomain     = null // Override y domain
-   ,  sizeDomain  = null // Override point size domain
-   ,  singlePoint = false
-   ,  dispatch    = d3.dispatch('elementClick', 'elementMouseover', 'elementMouseout')
-   ;
+    , width       = 960
+    , height      = 500
+    , color       = nv.utils.defaultColor() // chooses color
+    , id          = Math.floor(Math.random() * 100000) //Create semi-unique ID incase user doesn't selet one
+    , x           = d3.scale.linear()
+    , y           = d3.scale.linear()
+    , z           = d3.scale.linear() //linear because d3.svg.shape.size is treated as area
+    , getX        = function(d) { return d.x } // accessor to get the x value
+    , getY        = function(d) { return d.y } // accessor to get the y value
+    , getSize     = function(d) { return d.size } // accessor to get the point size
+    , getShape    = function(d) { return d.shape || 'circle' } // accessor to get point shape
+    , forceX      = [] // List of numbers to Force into the X scale (ie. 0, or a max / min, etc.)
+    , forceY      = [] // List of numbers to Force into the Y scale
+    , forceSize   = [] // List of numbers to Force into the Size scale
+    , interactive = true // If true, plots a voronoi overlay for advanced point interection
+    , pointActive = function(d) { return !d.notActive } // any points that return false will be filtered out
+    , clipEdge    = false // if true, masks points within x and y scale
+    , clipVoronoi = true // if true, masks each point with a circle... can turn off to slightly increase performance
+    , clipRadius  = function() { return 25 } // function to get the radius for voronoi point clips
+    , xDomain     = null // Override x domain (skips the calculation from data)
+    , yDomain     = null // Override y domain
+    , sizeDomain  = null // Override point size domain
+    , sizeRange   = null
+    , singlePoint = false
+    , dispatch    = d3.dispatch('elementClick', 'elementMouseover', 'elementMouseout')
+    , useVoronoi  = true
+    ;
 
   //============================================================
 
@@ -61,8 +63,6 @@ nv.models.scatter = function() {
         return series;
       });
 
-
-
       //------------------------------------------------------------
       // Setup Scales
 
@@ -83,7 +83,7 @@ nv.models.scatter = function() {
           .range([availableHeight, 0]);
 
       z   .domain(sizeDomain || d3.extent(seriesData.map(function(d) { return d.size }).concat(forceSize)))
-          .range([16, 256]);
+          .range(sizeRange || [16, 256]);
 
       // If scale's domain don't have a range, slightly adjust to make one... so a chart can show a single data point
       if (x.domain()[0] === x.domain()[1] || y.domain()[0] === y.domain()[1]) singlePoint = true;
@@ -133,11 +133,11 @@ nv.models.scatter = function() {
       g   .attr('clip-path', clipEdge ? 'url(#nv-edge-clip-' + id + ')' : '');
 
 
-
       function updateInteractiveLayer() {
 
         if (!interactive) return false;
 
+        var eventElements;
 
         var vertices = d3.merge(data.map(function(group, groupIndex) {
             return group.values
@@ -169,22 +169,44 @@ nv.models.scatter = function() {
 
 
         //inject series and point index for reference into voronoi
-        var voronoi = d3.geom.voronoi(vertices).map(function(d, i) {
-            return {
-              'data': d,
-              'series': vertices[i][2],
-              'point': vertices[i][3]
-            }
-          });
+        if (useVoronoi === true) {
+          var voronoi = d3.geom.voronoi(vertices).map(function(d, i) {
+              return {
+                'data': d,
+                'series': vertices[i][2],
+                'point': vertices[i][3]
+              }
+            });
 
 
-        var pointPaths = wrap.select('.nv-point-paths').selectAll('path')
-            .data(voronoi);
-        pointPaths.enter().append('path')
-            .attr('class', function(d,i) { return 'nv-path-'+i; });
-        pointPaths.exit().remove();
-        pointPaths
-            .attr('d', function(d) { return 'M' + d.data.join(',') + 'Z'; })
+          var pointPaths = wrap.select('.nv-point-paths').selectAll('path')
+              .data(voronoi);
+          pointPaths.enter().append('path')
+              .attr('class', function(d,i) { return 'nv-path-'+i; });
+          pointPaths.exit().remove();
+          pointPaths
+              .attr('d', function(d) { return 'M' + d.data.join(',') + 'Z'; });
+
+          eventElements = pointPaths;
+
+        } else {
+          // bring data in form needed for click handlers
+          var dataWithPoints = vertices.map(function(d, i) {
+              return {
+                'data': d,
+                'series': vertices[i][2],
+                'point': vertices[i][3]
+              }
+            });
+
+          // add event handlers to points instead voronoi paths
+          eventElements = wrap.select('.nv-groups').selectAll('.nv-group')
+            .selectAll('path.nv-point')
+            .data(dataWithPoints)
+            .style('pointer-events', 'auto'); // recativate events, disabled by css
+        }
+
+        eventElements
             .on('click', function(d) {
               var series = data[d.series],
                   point  = series.values[d.point];
@@ -333,7 +355,10 @@ nv.models.scatter = function() {
 
   chart.margin = function(_) {
     if (!arguments.length) return margin;
-    margin = _;
+    margin.top    = typeof _.top    != 'undefined' ? _.top    : margin.top;
+    margin.right  = typeof _.right  != 'undefined' ? _.right  : margin.right;
+    margin.bottom = typeof _.bottom != 'undefined' ? _.bottom : margin.bottom;
+    margin.left   = typeof _.left   != 'undefined' ? _.left   : margin.left;
     return chart;
   };
 
@@ -385,6 +410,12 @@ nv.models.scatter = function() {
     return chart;
   };
 
+  chart.sizeRange = function(_) {
+    if (!arguments.length) return sizeRange;
+    sizeRange = _;
+    return chart;
+  };
+
   chart.forceX = function(_) {
     if (!arguments.length) return forceX;
     forceX = _;
@@ -424,6 +455,15 @@ nv.models.scatter = function() {
   chart.clipVoronoi= function(_) {
     if (!arguments.length) return clipVoronoi;
     clipVoronoi = _;
+    return chart;
+  };
+
+  chart.useVoronoi= function(_) {
+    if (!arguments.length) return useVoronoi;
+    useVoronoi = _;
+    if (useVoronoi === false) {
+        clipVoronoi = false;
+    }
     return chart;
   };
 

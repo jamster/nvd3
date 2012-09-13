@@ -5,30 +5,39 @@ nv.models.line = function() {
   // Public Variables with Default Settings
   //------------------------------------------------------------
 
-  var margin = {top: 0, right: 0, bottom: 0, left: 0},
-      width = 960,
-      height = 500,
-      color = nv.utils.defaultColor(), // a function that returns a color
-      id = Math.floor(Math.random() * 10000), //Create semi-unique ID incase user doesn't select one
-      getX = function(d) { return d.x }, // accessor to get the x value from a data point
-      getY = function(d) { return d.y }, // accessor to get the y value from a data point
-      defined = function(d,i) { return !isNaN(getY(d,i)) && getY(d,i) !== null }, // allows a line to be not continous when it is not defined
-      isArea = function(d) { return d.area }, // decides if a line is an area or just a line
-      clipEdge = false, // if true, masks lines within x and y scale
-      x, y, //can be accessed via chart.scatter.[x/y]Scale()
-      interpolate = "linear"; // controls the line interpolation
+  var margin = {top: 0, right: 0, bottom: 0, left: 0}
+    , width = 960
+    , height = 500
+    , color = nv.utils.defaultColor() // a function that returns a color
+    , id = Math.floor(Math.random() * 10000) //Create semi-unique ID incase user doesn't select one
+    , getX = function(d) { return d.x } // accessor to get the x value from a data point
+    , getY = function(d) { return d.y } // accessor to get the y value from a data point
+    , defined = function(d,i) { return !isNaN(getY(d,i)) && getY(d,i) !== null } // allows a line to be not continous when it is not defined
+    , isArea = function(d) { return d.area } // decides if a line is an area or just a line
+    , clipEdge = false // if true, masks lines within x and y scale
+    , x //can be accessed via chart.xScale()
+    , y //can be accessed via chart.yScale()
+    , interpolate = "linear" // controls the line interpolation
+    , scatter = nv.models.scatter()
+    ;
+
+  scatter
+    .id(id)
+    .size(16) // default size
+    .sizeDomain([16,256]) //set to speed up calculation, needs to be unset if there is a custom size accessor
+    ;
+
+  //============================================================
 
 
   //============================================================
   // Private Variables
   //------------------------------------------------------------
 
-  var scatter = nv.models.scatter()
-                  .id(id)
-                  .size(16) // default size
-                  .sizeDomain([16,256]), //set to speed up calculation, needs to be unset if there is a cstom size accessor
-      x0, y0,
-      timeoutID;
+  var x0, y0 //used to store previous scales
+      ;
+
+  //============================================================
 
 
   function chart(selection) {
@@ -37,12 +46,20 @@ nv.models.line = function() {
           availableHeight = height - margin.top - margin.bottom,
           container = d3.select(this);
 
+      //------------------------------------------------------------
+      // Setup Scales
+
       x = scatter.xScale();
       y = scatter.yScale();
 
       x0 = x0 || x;
       y0 = y0 || y;
 
+      //------------------------------------------------------------
+
+
+      //------------------------------------------------------------
+      // Setup containers and skeleton of chart
 
       var wrap = container.selectAll('g.nv-wrap.nv-line').data([data]);
       var wrapEnter = wrap.enter().append('g').attr('class', 'nvd3 nv-wrap nv-line');
@@ -53,18 +70,22 @@ nv.models.line = function() {
       gEnter.append('g').attr('class', 'nv-groups');
       gEnter.append('g').attr('class', 'nv-scatterWrap');
 
-      var scatterWrap = wrap.select('.nv-scatterWrap');//.datum(data);
+      wrap.attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+
+      //------------------------------------------------------------
+
+
 
 
       scatter
         .width(availableWidth)
         .height(availableHeight)
 
+      var scatterWrap = wrap.select('.nv-scatterWrap');
+          //.datum(data); // Data automatically trickles down from the wrap
+
       d3.transition(scatterWrap).call(scatter);
 
-
-
-      wrap.attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
 
 
       defsEnter.append('clipPath')
@@ -183,16 +204,20 @@ nv.models.line = function() {
 
 
   //============================================================
-  // Global getters and setters
+  // Expose Public Variables
   //------------------------------------------------------------
 
   chart.dispatch = scatter.dispatch;
+  chart.scatter = scatter;
 
   d3.rebind(chart, scatter, 'interactive', 'size', 'xScale', 'yScale', 'zScale', 'xDomain', 'yDomain', 'sizeDomain', 'forceX', 'forceY', 'forceSize', 'clipVoronoi', 'clipRadius');
 
   chart.margin = function(_) {
     if (!arguments.length) return margin;
-    margin = _;
+    margin.top    = typeof _.top    != 'undefined' ? _.top    : margin.top;
+    margin.right  = typeof _.right  != 'undefined' ? _.right  : margin.right;
+    margin.bottom = typeof _.bottom != 'undefined' ? _.bottom : margin.bottom;
+    margin.left   = typeof _.left   != 'undefined' ? _.left   : margin.left;
     return chart;
   };
 
@@ -258,6 +283,9 @@ nv.models.line = function() {
     isArea = d3.functor(_);
     return chart;
   };
+
+  //============================================================
+
 
   return chart;
 }

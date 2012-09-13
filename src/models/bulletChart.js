@@ -3,27 +3,38 @@
 // based on the work of Clint Ivy, Jamie Love, and Jason Davies.
 // http://projects.instantcognition.com/protovis/bulletchart/
 nv.models.bulletChart = function() {
-  var orient = 'left', // TODO top & bottom
-      reverse = false,
-      margin = {top: 5, right: 40, bottom: 20, left: 120},
-      ranges = function(d) { return d.ranges },
-      markers = function(d) { return d.markers },
-      measures = function(d) { return d.measures },
-      width = null,
-      height = 55,
-      tickFormat = null,
-      tooltips = true,
-      tooltip = function(key, x, y, e, graph) {
+
+  //============================================================
+  // Public Variables with Default Settings
+  //------------------------------------------------------------
+
+  var bullet = nv.models.bullet()
+    ;
+
+  var orient = 'left' // TODO top & bottom
+    , reverse = false
+    , margin = {top: 5, right: 40, bottom: 20, left: 120}
+    , ranges = function(d) { return d.ranges }
+    , markers = function(d) { return d.markers }
+    , measures = function(d) { return d.measures }
+    , width = null
+    , height = 55
+    , tickFormat = null
+    , tooltips = true
+    , tooltip = function(key, x, y, e, graph) {
         return '<h3>' + e.label + '</h3>' +
                '<p>' +  e.value + '</p>'
-      },
-      noData = "No Data Available."
-      ;
+      }
+    , noData = "No Data Available."
+    , dispatch = d3.dispatch('tooltipShow', 'tooltipHide')
+    ;
+
+  //============================================================
 
 
-  var dispatch = d3.dispatch('tooltipShow', 'tooltipHide'),
-      bullet = nv.models.bullet();
-
+  //============================================================
+  // Private Variables
+  //------------------------------------------------------------
 
   var showTooltip = function(e, offsetElement) {
     var offsetElement = document.getElementById("chart"),
@@ -33,13 +44,14 @@ nv.models.bulletChart = function() {
     var content = '<h3>' + e.label + '</h3>' +
             '<p>' + e.value + '</p>';
 
-    nv.tooltip.show([left, top], content, e.value < 0 ? 'e' : 'w');
+    nv.tooltip.show([left, top], content, e.value < 0 ? 'e' : 'w', null, offsetElement);
   };
 
+  //============================================================
 
-  // For each small multipleâ€¦
-  function chart(g) {
-    g.each(function(d, i) {
+
+  function chart(selection) {
+    selection.each(function(d, i) {
       var container = d3.select(this);
 
       var availableWidth = (width  || parseInt(container.style('width')) || 960)
@@ -51,18 +63,26 @@ nv.models.bulletChart = function() {
       //------------------------------------------------------------
       // Display No Data message if there's nothing to show.
 
+      /*
+      // Disabled until I figure out a better way to check for no data with the bullet chart
       if (!data || !data.length || !data.filter(function(d) { return d.values.length }).length) {
-        container.append('text')
+        var noDataText = container.selectAll('.nv-noData').data([noData]);
+
+        noDataText.enter().append('text')
           .attr('class', 'nvd3 nv-noData')
-          .attr('x', availableWidth / 2)
-          .attr('y', availableHeight / 2)
           .attr('dy', '-.7em')
-          .style('text-anchor', 'middle')
-          .text(noData);
-          return chart;
+          .style('text-anchor', 'middle');
+
+        noDataText
+          .attr('x', margin.left + availableWidth / 2)
+          .attr('y', margin.top + availableHeight / 2)
+          .text(function(d) { return d });
+
+        return chart;
       } else {
-        container.select('.nv-noData').remove();
+        container.selectAll('.nv-noData').remove();
       }
+      */
 
       //------------------------------------------------------------
 
@@ -72,15 +92,21 @@ nv.models.bulletChart = function() {
           markerz = markers.call(this, d, i).slice().sort(d3.descending),
           measurez = measures.call(this, d, i).slice().sort(d3.descending);
 
+
+      //------------------------------------------------------------
+      // Setup containers and skeleton of chart
+
       var wrap = container.selectAll('g.nv-wrap.nv-bulletChart').data([d]);
       var wrapEnter = wrap.enter().append('g').attr('class', 'nvd3 nv-wrap nv-bulletChart');
       var gEnter = wrapEnter.append('g');
+      var g = wrap.select('g');
 
       gEnter.append('g').attr('class', 'nv-bulletWrap');
       gEnter.append('g').attr('class', 'nv-titles');
 
-      var g = wrap.select('g')
       wrap.attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+
+      //------------------------------------------------------------
 
 
       // Compute the new x-scale.
@@ -137,8 +163,7 @@ nv.models.bulletChart = function() {
         .width(availableWidth)
         .height(availableHeight)
 
-      var bulletWrap = g.select('.nv-bulletWrap')
-          //.datum(data);
+      var bulletWrap = g.select('.nv-bulletWrap');
 
       d3.transition(bulletWrap).call(bullet);
 
@@ -192,43 +217,47 @@ nv.models.bulletChart = function() {
           .style('opacity', 1e-6)
           .remove();
 
-/*
-      bullet.dispatch.on('elementMouseover', function(e) {
-          var offsetElement = document.getElementById("chart"),
-              left = e.pos[0] + offsetElement.offsetLeft + margin.left,
-              top = e.pos[1] + offsetElement.offsetTop + margin.top;
 
-          var content = '<h3>' + e.label + '</h3>' +
-                  '<p>' +
-                  e.value +
-                  '</p>';
+      //============================================================
+      // Event Handling/Dispatching (in chart's scope)
+      //------------------------------------------------------------
 
-          nv.tooltip.show([left, top], content, e.value < 0 ? 'e' : 'w');
+      dispatch.on('tooltipShow', function(e) {
+        if (tooltips) showTooltip(e, that.parentNode);
       });
 
-
-      bullet.dispatch.on('elementMouseout', function(e) {
-          nv.tooltip.cleanup();
-      });
-*/
-
-      bullet.dispatch.on('elementMouseover.tooltip', function(e) {
-        //e.pos = [e.pos[0] +  margin.left, e.pos[1] + margin.top];
-        dispatch.tooltipShow(e);
-      });
-      if (tooltips) dispatch.on('tooltipShow', function(e) { showTooltip(e, that.parentNode) } ); // TODO: maybe merge with above?
-
-      bullet.dispatch.on('elementMouseout.tooltip', function(e) {
-        dispatch.tooltipHide(e);
-      });
-      if (tooltips) dispatch.on('tooltipHide', nv.tooltip.cleanup);
-
-
+      //============================================================
 
     });
+
     d3.timer.flush();
+
+    return chart;
   }
 
+
+  //============================================================
+  // Event Handling/Dispatching (out of chart's scope)
+  //------------------------------------------------------------
+
+  bullet.dispatch.on('elementMouseover.tooltip', function(e) {
+    dispatch.tooltipShow(e);
+  });
+
+  bullet.dispatch.on('elementMouseout.tooltip', function(e) {
+    dispatch.tooltipHide(e);
+  });
+
+  dispatch.on('tooltipHide', function() {
+    if (tooltips) nv.tooltip.cleanup();
+  });
+
+  //============================================================
+
+
+  //============================================================
+  // Expose Public Variables
+  //------------------------------------------------------------
 
   chart.dispatch = dispatch;
   chart.bullet = bullet;
@@ -276,7 +305,10 @@ nv.models.bulletChart = function() {
 
   chart.margin = function(_) {
     if (!arguments.length) return margin;
-    margin = _;
+    margin.top    = typeof _.top    != 'undefined' ? _.top    : margin.top;
+    margin.right  = typeof _.right  != 'undefined' ? _.right  : margin.right;
+    margin.bottom = typeof _.bottom != 'undefined' ? _.bottom : margin.bottom;
+    margin.left   = typeof _.left   != 'undefined' ? _.left   : margin.left;
     return chart;
   };
 
@@ -303,6 +335,8 @@ nv.models.bulletChart = function() {
     noData = _;
     return chart;
   };
+
+  //============================================================
 
 
   return chart;

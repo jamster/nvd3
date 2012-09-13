@@ -3,17 +3,12 @@
 <link href="../src/nv.d3.css" rel="stylesheet" type="text/css">
 <style>
 
-.sparkline path {
-  fill: none;
-  stroke: #444;
-}
-
 text {
   font: 10px sans-serif;
 }
 
 #chart1 {
-  width: 400px;
+  width: 500px;
   height: 50px;
 }
 
@@ -29,16 +24,17 @@ text {
 <script src="../src/models/sparklinePlus.js"></script>
 <script>
 
-//Format A
 nv.addGraph({
   generate: function() {
     var chart = nv.models.sparklinePlus()
-                  .width(400)
-                  .height(50)
+                  //.width(400)
+                  //.height(50)
 
     d3.select("#chart1")
-      .datum(sine())
-      .call(chart);
+        //.datum([]) //for testing "noData"
+        .datum(sine())
+      .transition().duration(250)
+        .call(chart);
 
     return chart;
   },

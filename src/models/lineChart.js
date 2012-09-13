@@ -5,35 +5,46 @@ nv.models.lineChart = function() {
   // Public Variables with Default Settings
   //------------------------------------------------------------
 
-  var margin = {top: 30, right: 20, bottom: 50, left: 60},
-      color = nv.utils.defaultColor(),
-      width = null, 
-      height = null,
-      showLegend = true,
-      tooltips = true,
-      tooltip = function(key, x, y, e, graph) {
+  var lines = nv.models.line()
+    , xAxis = nv.models.axis()
+    , yAxis = nv.models.axis()
+    , legend = nv.models.legend()
+    ;
+
+  var margin = {top: 30, right: 20, bottom: 50, left: 60}
+    , color = nv.utils.defaultColor()
+    , width = null
+    , height = null
+    , showLegend = true
+    , tooltips = true
+    , tooltip = function(key, x, y, e, graph) {
         return '<h3>' + key + '</h3>' +
                '<p>' +  y + ' at ' + x + '</p>'
-      },
-      x,//can be accessed via chart.lines.[x/y]Scale()
-      y,
-      noData = "No Data Available."
-      ;
+      }
+    , x
+    , y
+    , noData = 'No Data Available.'
+    , dispatch = d3.dispatch('tooltipShow', 'tooltipHide')
+    ;
+
+  xAxis
+    .orient('bottom')
+    .tickPadding(5)
+    ;
+  yAxis
+    .orient('left')
+    ;
+
+  //============================================================
 
 
   //============================================================
   // Private Variables
   //------------------------------------------------------------
 
-  var lines = nv.models.line(),
-      xAxis = nv.models.axis().orient('bottom').tickPadding(5),
-      yAxis = nv.models.axis().orient('left'),
-      legend = nv.models.legend().height(30),
-      dispatch = d3.dispatch('tooltipShow', 'tooltipHide');
-
   var showTooltip = function(e, offsetElement) {
 
-    // New addition to calculate position if SVG is scaled with viewBox, may move
+    // New addition to calculate position if SVG is scaled with viewBox, may move TODO: consider implementing everywhere else
     if (offsetElement) {
       var svg = d3.select(offsetElement).select('svg');
       var viewBox = svg.attr('viewBox');
@@ -51,8 +62,10 @@ nv.models.lineChart = function() {
         y = yAxis.tickFormat()(lines.y()(e.point, e.pointIndex)),
         content = tooltip(e.series.key, x, y, e, chart);
 
-    nv.tooltip.show([left, top], content);
+    nv.tooltip.show([left, top], content, null, null, offsetElement);
   };
+
+  //============================================================
 
 
   function chart(selection) {
@@ -66,42 +79,60 @@ nv.models.lineChart = function() {
                              - margin.top - margin.bottom;
 
 
+      chart.update = function() { chart(selection) };
+      chart.container = this;
+
+
       //------------------------------------------------------------
-      // Display No Data message if there's nothing to show.
+      // Display noData message if there's nothing to show.
 
       if (!data || !data.length || !data.filter(function(d) { return d.values.length }).length) {
-        container.append('text')
+        var noDataText = container.selectAll('.nv-noData').data([noData]);
+
+        noDataText.enter().append('text')
           .attr('class', 'nvd3 nv-noData')
-          .attr('x', availableWidth / 2)
-          .attr('y', availableHeight / 2)
           .attr('dy', '-.7em')
-          .style('text-anchor', 'middle')
-          .text(noData);
-          return chart;
+          .style('text-anchor', 'middle');
+
+        noDataText
+          .attr('x', margin.left + availableWidth / 2)
+          .attr('y', margin.top + availableHeight / 2)
+          .text(function(d) { return d });
+
+        return chart;
       } else {
-        container.select('.nv-noData').remove();
+        container.selectAll('.nv-noData').remove();
       }
 
       //------------------------------------------------------------
 
 
+      //------------------------------------------------------------
+      // Setup Scales
+
       x = lines.xScale();
       y = lines.yScale();
 
+      //------------------------------------------------------------
+
+
+      //------------------------------------------------------------
+      // Setup containers and skeleton of chart
 
       var wrap = container.selectAll('g.nv-wrap.nv-lineChart').data([data]);
       var gEnter = wrap.enter().append('g').attr('class', 'nvd3 nv-wrap nv-lineChart').append('g');
+      var g = wrap.select('g');
 
       gEnter.append('g').attr('class', 'nv-x nv-axis');
       gEnter.append('g').attr('class', 'nv-y nv-axis');
       gEnter.append('g').attr('class', 'nv-linesWrap');
       gEnter.append('g').attr('class', 'nv-legendWrap');
 
-
-      var g = wrap.select('g');
-
+      //------------------------------------------------------------
 
 
+      //------------------------------------------------------------
+      // Legend
 
       if (showLegend) {
         legend.width(availableWidth);
@@ -116,10 +147,17 @@ nv.models.lineChart = function() {
                              - margin.top - margin.bottom;
         }
 
-        g.select('.nv-legendWrap')
+        wrap.select('.nv-legendWrap')
             .attr('transform', 'translate(0,' + (-margin.top) +')')
       }
 
+      //------------------------------------------------------------
+
+      wrap.attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+
+
+      //------------------------------------------------------------
+      // Main Chart Component(s)
 
       lines
         .width(availableWidth)
@@ -129,16 +167,16 @@ nv.models.lineChart = function() {
         }).filter(function(d,i) { return !data[i].disabled }));
 
 
-
-      g.attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
-
-
       var linesWrap = g.select('.nv-linesWrap')
           .datum(data.filter(function(d) { return !d.disabled }))
 
       d3.transition(linesWrap).call(lines);
 
+      //------------------------------------------------------------
 
+
+      //------------------------------------------------------------
+      // Setup Axes
 
       xAxis
         .scale(x)
@@ -159,6 +197,7 @@ nv.models.lineChart = function() {
       d3.transition(g.select('.nv-y.nv-axis'))
           .call(yAxis);
 
+      //------------------------------------------------------------
 
 
       //============================================================
@@ -195,12 +234,9 @@ nv.models.lineChart = function() {
         if (tooltips) showTooltip(e, that.parentNode);
       });
 
+      //============================================================
+
     });
-
-
-    //TODO: decide if this is a good idea, and if it should be in all models
-    chart.update = function() { chart(selection) };
-    chart.container = this; // I need a reference to the container in order to have outside code check if the chart is visible or not
 
     return chart;
   }
@@ -223,22 +259,28 @@ nv.models.lineChart = function() {
     if (tooltips) nv.tooltip.cleanup();
   });
 
+  //============================================================
+
 
   //============================================================
-  // Global getters and setters
+  // Expose Public Variables
   //------------------------------------------------------------
 
+  // expose chart's sub-components
   chart.dispatch = dispatch;
+  chart.lines = lines;
   chart.legend = legend;
   chart.xAxis = xAxis;
   chart.yAxis = yAxis;
 
   d3.rebind(chart, lines, 'defined', 'isArea', 'x', 'y', 'size', 'xScale', 'yScale', 'xDomain', 'yDomain', 'forceX', 'forceY', 'interactive', 'clipEdge', 'clipVoronoi', 'id', 'interpolate');
 
-
   chart.margin = function(_) {
     if (!arguments.length) return margin;
-    margin = _;
+    margin.top    = typeof _.top    != 'undefined' ? _.top    : margin.top;
+    margin.right  = typeof _.right  != 'undefined' ? _.right  : margin.right;
+    margin.bottom = typeof _.bottom != 'undefined' ? _.bottom : margin.bottom;
+    margin.left   = typeof _.left   != 'undefined' ? _.left   : margin.left;
     return chart;
   };
 
@@ -284,6 +326,8 @@ nv.models.lineChart = function() {
     noData = _;
     return chart;
   };
+
+  //============================================================
 
 
   return chart;
