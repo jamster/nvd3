@@ -5,18 +5,25 @@ nv.models.scatterChart = function() {
   // Public Variables with Default Settings
   //------------------------------------------------------------
 
+  var scatter      = nv.models.scatter()
+    , xAxis        = nv.models.axis()
+    , yAxis        = nv.models.axis()
+    , legend       = nv.models.legend()
+    , controls     = nv.models.legend()
+    , distX        = nv.models.distribution()
+    , distY        = nv.models.distribution()
+    ;
+
   var margin       = {top: 30, right: 20, bottom: 50, left: 60}
     , width        = null
     , height       = null
-    , color        = d3.scale.category20().range()
-    //x            = scatter.xScale(),
-    , x            = d3.fisheye.scale(d3.scale.linear).distortion(0)
-    //y            = scatter.yScale(),
-    , y            = d3.fisheye.scale(d3.scale.linear).distortion(0)
+    , color        = nv.utils.defaultColor()
+    , x            = d3.fisheye ? d3.fisheye.scale(d3.scale.linear).distortion(0) : scatter.xScale()
+    , y            = d3.fisheye ? d3.fisheye.scale(d3.scale.linear).distortion(0) : scatter.yScale()
     , showDistX    = false
     , showDistY    = false
     , showLegend   = true
-    , showControls = true
+    , showControls = !!d3.fisheye
     , fisheye      = 0
     , pauseFisheye = false
     , tooltips     = true
@@ -24,14 +31,27 @@ nv.models.scatterChart = function() {
     , tooltipY     = function(key, x, y) { return '<strong>' + y + '</strong>' }
     //, tooltip      = function(key, x, y) { return '<h3>' + key + '</h3>' }
     , tooltip      = null
-    , scatter      = nv.models.scatter().xScale(x).yScale(y)
-    , xAxis        = nv.models.axis().orient('bottom').tickPadding(10)
-    , yAxis        = nv.models.axis().orient('left').tickPadding(10)
-    , legend       = nv.models.legend().height(30)
-    , controls     = nv.models.legend().height(30)
-    , distX        = nv.models.distribution().axis('x')
-    , distY        = nv.models.distribution().axis('y')
     , dispatch     = d3.dispatch('tooltipShow', 'tooltipHide')
+    , noData       = "No Data Available."
+    ;
+
+  scatter
+    .xScale(x)
+    .yScale(y)
+    ;
+  xAxis
+    .orient('bottom')
+    .tickPadding(10)
+    ;
+  yAxis
+    .orient('left')
+    .tickPadding(10)
+    ;
+  distX
+    .axis('x')
+    ;
+  distY
+    .axis('y')
     ;
 
   //============================================================
@@ -56,11 +76,11 @@ nv.models.scatterChart = function() {
         yVal = yAxis.tickFormat()(scatter.y()(e.point, e.pointIndex));
 
       if( tooltipX != null )
-          nv.tooltip.show([leftX, topX], tooltipX(e.series.key, xVal, yVal, e, chart), 'n', 1, null, 'x-nvtooltip');
+          nv.tooltip.show([leftX, topX], tooltipX(e.series.key, xVal, yVal, e, chart), 'n', 1, offsetElement, 'x-nvtooltip');
       if( tooltipY != null )
-          nv.tooltip.show([leftY, topY], tooltipY(e.series.key, xVal, yVal, e, chart), 'e', 1, null, 'y-nvtooltip');
+          nv.tooltip.show([leftY, topY], tooltipY(e.series.key, xVal, yVal, e, chart), 'e', 1, offsetElement, 'y-nvtooltip');
       if( tooltip != null )
-          nv.tooltip.show([left, top], tooltip(e.series.key, xVal, yVal, e, chart), e.value < 0 ? 'n' : 's');
+          nv.tooltip.show([left, top], tooltip(e.series.key, xVal, yVal, e, chart), e.value < 0 ? 'n' : 's', null, offsetElement);
   };
 
   var controlsData = [
@@ -80,6 +100,33 @@ nv.models.scatterChart = function() {
           availableHeight = (height || parseInt(container.style('height')) || 400)
                              - margin.top - margin.bottom;
 
+      chart.update = function() { chart(selection) };
+      chart.container = this;
+
+
+      //------------------------------------------------------------
+      // Display noData message if there's nothing to show.
+
+      if (!data || !data.length || !data.filter(function(d) { return d.values.length }).length) {
+        var noDataText = container.selectAll('.nv-noData').data([noData]);
+
+        noDataText.enter().append('text')
+          .attr('class', 'nvd3 nv-noData')
+          .attr('dy', '-.7em')
+          .style('text-anchor', 'middle');
+
+        noDataText
+          .attr('x', margin.left + availableWidth / 2)
+          .attr('y', margin.top + availableHeight / 2)
+          .text(function(d) { return d });
+
+        return chart;
+      } else {
+        container.selectAll('.nv-noData').remove();
+      }
+
+      //------------------------------------------------------------
+
 
       //------------------------------------------------------------
       // Setup Scales
@@ -96,30 +143,33 @@ nv.models.scatterChart = function() {
       //------------------------------------------------------------
       // Setup containers and skeleton of chart
 
-      var wrap = container.selectAll('g.wrap.scatterChart').data([data]);
-      var wrapEnter = wrap.enter().append('g').attr('class', 'wrap nvd3 scatterChart chart-' + scatter.id());
+      var wrap = container.selectAll('g.nv-wrap.nv-scatterChart').data([data]);
+      var wrapEnter = wrap.enter().append('g').attr('class', 'nvd3 nv-wrap nv-scatterChart nv-chart-' + scatter.id());
       var gEnter = wrapEnter.append('g');
       var g = wrap.select('g')
 
       // background for pointer events
-      gEnter.append('rect').attr('class', 'nvd3 background')
+      gEnter.append('rect').attr('class', 'nvd3 nv-background')
 
-      gEnter.append('g').attr('class', 'x axis');
-      gEnter.append('g').attr('class', 'y axis');
-      gEnter.append('g').attr('class', 'scatterWrap');
-      gEnter.append('g').attr('class', 'distWrap');
-      gEnter.append('g').attr('class', 'legendWrap');
-      gEnter.append('g').attr('class', 'controlsWrap');
+      gEnter.append('g').attr('class', 'nv-x nv-axis');
+      gEnter.append('g').attr('class', 'nv-y nv-axis');
+      gEnter.append('g').attr('class', 'nv-scatterWrap');
+      gEnter.append('g').attr('class', 'nv-distWrap');
+      gEnter.append('g').attr('class', 'nv-legendWrap');
+      gEnter.append('g').attr('class', 'nv-controlsWrap');
 
       wrap.attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
 
       //------------------------------------------------------------
 
 
+      //------------------------------------------------------------
+      // Legend
+
       if (showLegend) {
         legend.width( availableWidth / 2 );
 
-        wrap.select('.legendWrap')
+        wrap.select('.nv-legendWrap')
             .datum(data)
             .call(legend);
 
@@ -129,112 +179,137 @@ nv.models.scatterChart = function() {
                              - margin.top - margin.bottom;
         }
 
-        wrap.select('.legendWrap')
+        wrap.select('.nv-legendWrap')
             .attr('transform', 'translate(' + (availableWidth / 2) + ',' + (-margin.top) +')');
       }
 
+      //------------------------------------------------------------
+
+
+      //------------------------------------------------------------
+      // Controls
 
       if (showControls) {
         controls.width(180).color(['#444']);
-        g.select('.controlsWrap')
+        g.select('.nv-controlsWrap')
             .datum(controlsData)
             .attr('transform', 'translate(0,' + (-margin.top) +')')
             .call(controls);
       }
 
+      //------------------------------------------------------------
 
-      g.select('.background')
-          .attr('width', availableWidth)
-          .attr('height', availableHeight);
 
+      //------------------------------------------------------------
+      // Main Chart Component(s)
 
       scatter
           .width(availableWidth)
           .height(availableHeight)
           .color(data.map(function(d,i) {
-            return d.color || color[i % color.length];
+            return d.color || color(d, i);
           }).filter(function(d,i) { return !data[i].disabled }))
 
-      wrap.select('.scatterWrap')
+      wrap.select('.nv-scatterWrap')
           .datum(data.filter(function(d) { return !d.disabled }))
           .call(scatter);
 
+      //------------------------------------------------------------
+
+
+      //------------------------------------------------------------
+      // Setup Axes
 
       xAxis
           .scale(x)
-          .ticks( availableWidth / 100 )
+          .ticks( xAxis.ticks() ? xAxis.ticks() : availableWidth / 100 )
           .tickSize( -availableHeight , 0);
 
-      g.select('.x.axis')
+      g.select('.nv-x.nv-axis')
           .attr('transform', 'translate(0,' + y.range()[0] + ')')
           .call(xAxis);
 
 
       yAxis
           .scale(y)
-          .ticks( availableHeight / 36 )
+          .ticks( yAxis.ticks() ? yAxis.ticks() : availableHeight / 36 )
           .tickSize( -availableWidth, 0);
 
-      g.select('.y.axis')
+      g.select('.nv-y.nv-axis')
           .call(yAxis);
 
 
-      distX
-          .scale(x)
-          .width(availableWidth)
-          .color(data.map(function(d,i) {
-            return d.color || color[i % color.length];
-          }).filter(function(d,i) { return !data[i].disabled }));
-      gEnter.select('.distWrap').append('g')
-          .attr('class', 'distributionX')
-          .attr('transform', 'translate(0,' + y.range()[0] + ')');
-      g.select('.distributionX')
-          .datum(data.filter(function(d) { return !d.disabled }))
-          .call(distX);
+      if (showDistX) {
+        distX
+            .getData(scatter.x())
+            .scale(x)
+            .width(availableWidth)
+            .color(data.map(function(d,i) {
+              return d.color || color(d, i);
+            }).filter(function(d,i) { return !data[i].disabled }));
+        gEnter.select('.nv-distWrap').append('g')
+            .attr('class', 'nv-distributionX');
+        g.select('.nv-distributionX')
+            .attr('transform', 'translate(0,' + y.range()[0] + ')')
+            .datum(data.filter(function(d) { return !d.disabled }))
+            .call(distX);
+      }
+
+      if (showDistY) {
+        distY
+            .getData(scatter.y())
+            .scale(y)
+            .width(availableHeight)
+            .color(data.map(function(d,i) {
+              return d.color || color(d, i);
+            }).filter(function(d,i) { return !data[i].disabled }));
+        gEnter.select('.nv-distWrap').append('g')
+            .attr('class', 'nv-distributionY');
+        g.select('.nv-distributionY')
+            .attr('transform', 'translate(-' + distY.size() + ',0)')
+            .datum(data.filter(function(d) { return !d.disabled }))
+            .call(distY);
+      }
+
+      //------------------------------------------------------------
 
 
-      distY
-          .scale(y)
-          .width(availableHeight)
-          .color(data.map(function(d,i) {
-            return d.color || color[i % color.length];
-          }).filter(function(d,i) { return !data[i].disabled }));
-      gEnter.select('.distWrap').append('g')
-          .attr('class', 'distributionY')
-          .attr('transform', 'translate(-' + distY.size() + ',0)');
-      g.select('.distributionY')
-          .datum(data.filter(function(d) { return !d.disabled }))
-          .call(distY);
 
 
-      g.select('.background').on('mousemove', updateFisheye);
-      g.select('.background').on('click', function() { pauseFisheye = !pauseFisheye;});
-      scatter.dispatch.on('elementClick.freezeFisheye', function() {
-        pauseFisheye = !pauseFisheye;
-      });
+      if (d3.fisheye) {
+        g.select('.nv-background')
+            .attr('width', availableWidth)
+            .attr('height', availableHeight);
+
+        g.select('.nv-background').on('mousemove', updateFisheye);
+        g.select('.nv-background').on('click', function() { pauseFisheye = !pauseFisheye;});
+        scatter.dispatch.on('elementClick.freezeFisheye', function() {
+          pauseFisheye = !pauseFisheye;
+        });
+      }
 
 
       function updateFisheye() {
         if (pauseFisheye) {
-          g.select('.point-paths').style('pointer-events', 'all');
+          g.select('.nv-point-paths').style('pointer-events', 'all');
           return false;
         }
 
-        g.select('.point-paths').style('pointer-events', 'none' );
+        g.select('.nv-point-paths').style('pointer-events', 'none' );
 
         var mouse = d3.mouse(this);
         x.distortion(fisheye).focus(mouse[0]);
         y.distortion(fisheye).focus(mouse[1]);
 
-        g.select('.scatterWrap')
+        g.select('.nv-scatterWrap')
             .datum(data.filter(function(d) { return !d.disabled }))
             .call(scatter);
-        g.select('.x.axis').call(xAxis);
-        g.select('.y.axis').call(yAxis);
-        g.select('.distributionX')
+        g.select('.nv-x.nv-axis').call(xAxis);
+        g.select('.nv-y.nv-axis').call(yAxis);
+        g.select('.nv-distributionX')
             .datum(data.filter(function(d) { return !d.disabled }))
             .call(distX);
-        g.select('.distributionY')
+        g.select('.nv-distributionY')
             .datum(data.filter(function(d) { return !d.disabled }))
             .call(distY);
       }
@@ -249,16 +324,16 @@ nv.models.scatterChart = function() {
         d.disabled = !d.disabled;
 
         fisheye = d.disabled ? 0 : 2.5;
-        g.select('.background') .style('pointer-events', d.disabled ? 'none' : 'all');
-        g.select('.point-paths').style('pointer-events', d.disabled ? 'all' : 'none' );
+        g.select('.nv-background') .style('pointer-events', d.disabled ? 'none' : 'all');
+        g.select('.nv-point-paths').style('pointer-events', d.disabled ? 'all' : 'none' );
 
         if (d.disabled) {
           x.distortion(fisheye).focus(0);
           y.distortion(fisheye).focus(0);
 
-          g.select('.scatterWrap').call(scatter);
-          g.select('.x.axis').call(xAxis);
-          g.select('.y.axis').call(yAxis);
+          g.select('.nv-scatterWrap').call(scatter);
+          g.select('.nv-x.nv-axis').call(xAxis);
+          g.select('.nv-y.nv-axis').call(yAxis);
         } else {
           pauseFisheye = false;
         }
@@ -272,7 +347,7 @@ nv.models.scatterChart = function() {
         if (!data.filter(function(d) { return !d.disabled }).length) {
           data.map(function(d) {
             d.disabled = false;
-            wrap.selectAll('.series').classed('disabled', false);
+            wrap.selectAll('.nv-series').classed('disabled', false);
             return d;
           });
         }
@@ -293,9 +368,9 @@ nv.models.scatterChart = function() {
       */
 
       scatter.dispatch.on('elementMouseover.tooltip', function(e) {
-        d3.select('.chart-' + scatter.id() + ' .series-' + e.seriesIndex + ' .distx-' + e.pointIndex)
+        d3.select('.nv-chart-' + scatter.id() + ' .nv-series-' + e.seriesIndex + ' .nv-distx-' + e.pointIndex)
             .attr('y1', e.pos[1] - availableHeight);
-        d3.select('.chart-' + scatter.id() + ' .series-' + e.seriesIndex + ' .disty-' + e.pointIndex)
+        d3.select('.nv-chart-' + scatter.id() + ' .nv-series-' + e.seriesIndex + ' .nv-disty-' + e.pointIndex)
             .attr('x2', e.pos[0] + distX.size());
 
         e.pos = [e.pos[0] + margin.left, e.pos[1] + margin.top];
@@ -306,14 +381,13 @@ nv.models.scatterChart = function() {
         if (tooltips) showTooltip(e, that.parentNode);
       });
 
+      //============================================================
+
 
       //store old scales for use in transitions on update
       x0 = x.copy();
       y0 = y.copy();
 
-
-      chart.update = function() { chart(selection) };
-      chart.container = this;
 
     });
 
@@ -328,33 +402,40 @@ nv.models.scatterChart = function() {
   scatter.dispatch.on('elementMouseout.tooltip', function(e) {
     dispatch.tooltipHide(e);
 
-    d3.select('.chart-' + scatter.id() + ' .series-' + e.seriesIndex + ' .distx-' + e.pointIndex)
+    d3.select('.nv-chart-' + scatter.id() + ' .nv-series-' + e.seriesIndex + ' .nv-distx-' + e.pointIndex)
         .attr('y1', 0);
-    d3.select('.chart-' + scatter.id() + ' .series-' + e.seriesIndex + ' .disty-' + e.pointIndex)
+    d3.select('.nv-chart-' + scatter.id() + ' .nv-series-' + e.seriesIndex + ' .nv-disty-' + e.pointIndex)
         .attr('x2', distY.size());
   });
   dispatch.on('tooltipHide', function() {
     if (tooltips) nv.tooltip.cleanup();
   });
 
+  //============================================================
+
 
   //============================================================
   // Expose Public Variables
   //------------------------------------------------------------
 
+  // expose chart's sub-components
   chart.dispatch = dispatch;
+  chart.scatter = scatter;
   chart.legend = legend;
-  chart.controls = legend;
+  chart.controls = controls;
   chart.xAxis = xAxis;
   chart.yAxis = yAxis;
   chart.distX = distX;
   chart.distY = distY;
 
-  d3.rebind(chart, scatter, 'id', 'interactive', 'pointActive', 'shape', 'size', 'xScale', 'yScale', 'zScale', 'xDomain', 'yDomain', 'sizeDomain', 'forceX', 'forceY', 'forceSize', 'clipVoronoi', 'clipRadius');
+  d3.rebind(chart, scatter, 'id', 'interactive', 'pointActive', 'x', 'y', 'shape', 'size', 'xScale', 'yScale', 'zScale', 'xDomain', 'yDomain', 'sizeDomain', 'sizeRange', 'forceX', 'forceY', 'forceSize', 'clipVoronoi', 'clipRadius', 'useVoronoi');
 
   chart.margin = function(_) {
     if (!arguments.length) return margin;
-    margin = _;
+    margin.top    = typeof _.top    != 'undefined' ? _.top    : margin.top;
+    margin.right  = typeof _.right  != 'undefined' ? _.right  : margin.right;
+    margin.bottom = typeof _.bottom != 'undefined' ? _.bottom : margin.bottom;
+    margin.left   = typeof _.left   != 'undefined' ? _.left   : margin.left;
     return chart;
   };
 
@@ -372,10 +453,10 @@ nv.models.scatterChart = function() {
 
   chart.color = function(_) {
     if (!arguments.length) return color;
-    color = _;
-    legend.color(_);
-    distX.color(_);
-    distY.color(_);
+    color = nv.utils.getColor(_);
+    legend.color(color);
+    distX.color(color);
+    distY.color(color);
     return chart;
   };
 
@@ -430,6 +511,12 @@ nv.models.scatterChart = function() {
   chart.tooltipYContent = function(_) {
     if (!arguments.length) return tooltipY;
     tooltipY = _;
+    return chart;
+  };
+
+  chart.noData = function(_) {
+    if (!arguments.length) return noData;
+    noData = _;
     return chart;
   };
 

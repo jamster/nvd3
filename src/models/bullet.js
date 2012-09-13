@@ -2,37 +2,41 @@
 // Chart design based on the recommendations of Stephen Few. Implementation
 // based on the work of Clint Ivy, Jamie Love, and Jason Davies.
 // http://projects.instantcognition.com/protovis/bulletchart/
+
 nv.models.bullet = function() {
-  var orient = 'left', // TODO top & bottom
-      reverse = false,
-      margin = {top: 0, right: 0, bottom: 0, left: 0},
-      ranges = function(d) { return d.ranges },
-      markers = function(d) { return d.markers },
-      measures = function(d) { return d.measures },
-      width = 380,
-      height = 30,
-      tickFormat = null;
 
-  var dispatch = d3.dispatch('elementMouseover', 'elementMouseout');
+  //============================================================
+  // Public Variables with Default Settings
+  //------------------------------------------------------------
 
-  // For each small multipleâ€¦
-  function chart(g) {
-    g.each(function(d, i) {
+  var margin = {top: 0, right: 0, bottom: 0, left: 0}
+    , orient = 'left' // TODO top & bottom
+    , reverse = false
+    , ranges = function(d) { return d.ranges }
+    , markers = function(d) { return d.markers }
+    , measures = function(d) { return d.measures }
+    , width = 380
+    , height = 30
+    , tickFormat = null
+    , dispatch = d3.dispatch('elementMouseover', 'elementMouseout')
+    ;
+
+  //============================================================
+
+
+  function chart(selection) {
+    selection.each(function(d, i) {
       var availableWidth = width - margin.left - margin.right,
-          availableHeight = height - margin.top - margin.bottom;
+          availableHeight = height - margin.top - margin.bottom,
+          container = d3.select(this);
 
       var rangez = ranges.call(this, d, i).slice().sort(d3.descending),
           markerz = markers.call(this, d, i).slice().sort(d3.descending),
           measurez = measures.call(this, d, i).slice().sort(d3.descending);
 
 
-      var wrap = d3.select(this).selectAll('g.wrap.bullet').data([d]);
-      var wrapEnter = wrap.enter().append('g').attr('class', 'wrap nvd3 bullet');
-      var gEnter = wrapEnter.append('g');
-
-      var g = wrap.select('g')
-      wrap.attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
-
+      //------------------------------------------------------------
+      // Setup Scales
 
       // Compute the new x-scale.
       var x1 = d3.scale.linear()
@@ -47,35 +51,33 @@ nv.models.bullet = function() {
       // Stash the new scale.
       this.__chart__ = x1;
 
-      /*
-      // Derive width-scales from the x-scales.
-      var w0 = bulletWidth(x0),
-          w1 = bulletWidth(x1);
+      //------------------------------------------------------------
 
-      function bulletWidth(x) {
-        var x0 = x(0);
-        return function(d) {
-          return Math.abs(x(d) - x(0));
-        };
-      }
 
-      function bulletTranslate(x) {
-        return function(d) {
-          return 'translate(' + x(d) + ',0)';
-        };
-      }
-      */
+      //------------------------------------------------------------
+      // Setup containers and skeleton of chart
+
+      var wrap = container.selectAll('g.nv-wrap.nv-bullet').data([d]);
+      var wrapEnter = wrap.enter().append('g').attr('class', 'nvd3 nv-wrap nv-bullet');
+      var gEnter = wrapEnter.append('g');
+      var g = wrap.select('g');
+
+      wrap.attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+
+      //------------------------------------------------------------
+
+
 
       var w0 = function(d) { return Math.abs(x0(d) - x0(0)) }, // TODO: could optimize by precalculating x0(0) and x1(0)
           w1 = function(d) { return Math.abs(x1(d) - x1(0)) };
 
 
       // Update the range rects.
-      var range = g.selectAll('rect.range')
+      var range = g.selectAll('rect.nv-range')
           .data(rangez);
 
       range.enter().append('rect')
-          .attr('class', function(d, i) { return 'range s' + i; })
+          .attr('class', function(d, i) { return 'nv-range nv-s' + i; })
           .attr('width', w0)
           .attr('height', availableHeight)
           .attr('x', reverse ? x0 : 0)
@@ -89,7 +91,7 @@ nv.models.bullet = function() {
           .on('mouseout', function(d,i) { 
               dispatch.elementMouseout({
                 value: d,
-                label: (i <= 0) ? 'Minimum' : (i >=1) ? 'Maximum' : 'Mean', //TODO: make these labels a variable
+                label: (i <= 0) ? 'Minimum' : (i >=1) ? 'Maximum' : 'Mean' //TODO: make these labels a variable
               })
           })
 
@@ -100,11 +102,11 @@ nv.models.bullet = function() {
 
 
       // Update the measure rects.
-      var measure = g.selectAll('rect.measure')
+      var measure = g.selectAll('rect.nv-measure')
           .data(measurez);
 
       measure.enter().append('rect')
-          .attr('class', function(d, i) { return 'measure s' + i; })
+          .attr('class', function(d, i) { return 'nv-measure nv-s' + i; })
           .attr('width', w0)
           .attr('height', availableHeight / 3)
           .attr('x', reverse ? x0 : 0)
@@ -132,22 +134,22 @@ nv.models.bullet = function() {
 
 
       // Update the marker lines.
-      var marker = g.selectAll('path.markerTriangle')
+      var marker = g.selectAll('path.nv-markerTriangle')
           .data(markerz);
 
       var h3 =  availableHeight / 6;
       marker.enter().append('path')
-          .attr('class', 'markerTriangle')
+          .attr('class', 'nv-markerTriangle')
           .attr('transform', function(d) { return 'translate(' + x0(d) + ',' + (availableHeight / 2) + ')' })
           .attr('d', 'M0,' + h3 + 'L' + h3 + ',' + (-h3) + ' ' + (-h3) + ',' + (-h3) + 'Z')
-          .on('mouseover', function(d,i) { 
+          .on('mouseover', function(d,i) {
               dispatch.elementMouseover({
                 value: d,
                 label: 'Previous',
                 pos: [x1(d), availableHeight/2]
               })
           })
-          .on('mouseout', function(d,i) { 
+          .on('mouseout', function(d,i) {
               dispatch.elementMouseout({
                 value: d,
                 label: 'Previous'
@@ -159,11 +161,17 @@ nv.models.bullet = function() {
 
       marker.exit().remove();
 
-
     });
+
     d3.timer.flush();
+
+    return chart;
   }
 
+
+  //============================================================
+  // Expose Public Variables
+  //------------------------------------------------------------
 
   chart.dispatch = dispatch;
 
@@ -210,7 +218,10 @@ nv.models.bullet = function() {
 
   chart.margin = function(_) {
     if (!arguments.length) return margin;
-    margin = _;
+    margin.top    = typeof _.top    != 'undefined' ? _.top    : margin.top;
+    margin.right  = typeof _.right  != 'undefined' ? _.right  : margin.right;
+    margin.bottom = typeof _.bottom != 'undefined' ? _.bottom : margin.bottom;
+    margin.left   = typeof _.left   != 'undefined' ? _.left   : margin.left;
     return chart;
   };
 
@@ -219,6 +230,9 @@ nv.models.bullet = function() {
     tickFormat = _;
     return chart;
   };
+
+  //============================================================
+
 
   return chart;
 };
