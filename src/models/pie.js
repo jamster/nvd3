@@ -1,4 +1,3 @@
-
 nv.models.pie = function() {
 
   //============================================================
@@ -19,6 +18,7 @@ nv.models.pie = function() {
     , labelThreshold = .02 //if slice percentage is under this, don't show label
     , donut = false
     , labelSunbeamLayout = false
+    , donutRatio = 0.5
     , dispatch = d3.dispatch('chartClick', 'elementClick', 'elementDblClick', 'elementMouseover', 'elementMouseout')
     ;
 
@@ -65,7 +65,7 @@ nv.models.pie = function() {
       var arc = d3.svg.arc()
                   .outerRadius(arcRadius);
 
-      if (donut) arc.innerRadius(radius / 2);
+      if (donut) arc.innerRadius(radius * donutRatio);
 
 
       // Setup the Pie chart and choose the data element
@@ -318,6 +318,12 @@ nv.models.pie = function() {
   chart.donut = function(_) {
     if (!arguments.length) return donut;
     donut = _;
+    return chart;
+  };
+  
+  chart.donutRatio = function(_) {
+    if (!arguments.length) return donutRatio;
+    donutRatio = _;
     return chart;
   };
 
