@@ -10,7 +10,7 @@ nv.models.discreteBarChart = function() {
     , yAxis = nv.models.axis()
     ;
 
-  var margin = {top: 10, right: 10, bottom: 50, left: 60}
+  var margin = {top: 15, right: 10, bottom: 50, left: 60}
     , width = null
     , height = null
     , color = nv.utils.getColor()
@@ -166,10 +166,11 @@ nv.models.discreteBarChart = function() {
 
       var xTicks = g.select('.nv-x.nv-axis').selectAll('g');
 
-      if (staggerLabels)
+      if (staggerLabels) {
         xTicks
             .selectAll('text')
-            .attr('transform', function(d,i,j) { return 'translate(0,' + (j % 2 == 0 ? '0' : '12') + ')' })
+            .attr('transform', function(d,i,j) { return 'translate(0,' + (j % 2 == 0 ? '5' : '17') + ')' })
+      }
 
       yAxis
         .scale(y)

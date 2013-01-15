@@ -26,13 +26,14 @@ nv.models.stackedAreaChart = function() {
     , x //can be accessed via chart.xScale()
     , y //can be accessed via chart.yScale()
     , yAxisTickFormat = d3.format(',.2f')
+    , state = { style: stacked.style() }
     , noData = 'No Data Available.'
-    , dispatch = d3.dispatch('tooltipShow', 'tooltipHide')
+    , dispatch = d3.dispatch('tooltipShow', 'tooltipHide', 'stateChange', 'changeState')
     ;
 
   xAxis
     .orient('bottom')
-    .tickPadding(5)
+    .tickPadding(7)
     ;
   yAxis
     .orient('left')
@@ -195,7 +196,8 @@ nv.models.stackedAreaChart = function() {
 
       var stackedWrap = g.select('.nv-stackedWrap')
           .datum(data);
-      d3.transition(stackedWrap).call(stacked);
+      //d3.transition(stackedWrap).call(stacked);
+      stackedWrap.call(stacked);
 
       //------------------------------------------------------------
 
@@ -210,7 +212,9 @@ nv.models.stackedAreaChart = function() {
 
       g.select('.nv-x.nv-axis')
           .attr('transform', 'translate(0,' + availableHeight + ')');
-      d3.transition(g.select('.nv-x.nv-axis'))
+      //d3.transition(g.select('.nv-x.nv-axis'))
+      g.select('.nv-x.nv-axis')
+        .transition().duration(0)
           .call(xAxis);
 
       yAxis
@@ -219,7 +223,9 @@ nv.models.stackedAreaChart = function() {
         .tickSize(-availableWidth, 0)
         .setTickFormat(stacked.offset() == 'expand' ? d3.format('%') : yAxisTickFormat);
 
-      d3.transition(g.select('.nv-y.nv-axis'))
+      //d3.transition(g.select('.nv-y.nv-axis'))
+      g.select('.nv-y.nv-axis')
+        .transition().duration(0)
           .call(yAxis);
 
       //------------------------------------------------------------
@@ -241,7 +247,8 @@ nv.models.stackedAreaChart = function() {
             return d
           });
 
-        selection.transition().call(chart);
+        //selection.transition().call(chart);
+        chart(selection);
       });
 
       legend.dispatch.on('legendClick', function(d,i) {
@@ -254,7 +261,11 @@ nv.models.stackedAreaChart = function() {
           });
         }
 
-        selection.transition().call(chart);
+        state.disabled = data.map(function(d) { return !!d.disabled });
+        dispatch.stateChange(state);
+
+        //selection.transition().call(chart);
+        chart(selection);
       });
 
       controls.dispatch.on('legendClick', function(d,i) {
@@ -278,11 +289,33 @@ nv.models.stackedAreaChart = function() {
             break;
         }
 
-        selection.transition().call(chart);
+        state.style = stacked.style();
+        dispatch.stateChange(state);
+
+        //selection.transition().call(chart);
+        chart(selection);
       });
 
       dispatch.on('tooltipShow', function(e) {
         if (tooltips) showTooltip(e, that.parentNode);
+      });
+
+      // Update chart from a state object passed to event handler
+      dispatch.on('changeState', function(e) {
+
+        if (typeof e.disabled !== 'undefined') {
+          data.forEach(function(series,i) {
+            series.disabled = e.disabled[i];
+          });
+
+          state.disabled = e.disabled;
+        }
+
+        if (typeof e.style !== 'undefined') {
+          stacked.style(e.style);
+        }
+
+        selection.call(chart);
       });
 
     });
@@ -391,6 +424,12 @@ nv.models.stackedAreaChart = function() {
   chart.tooltipContent = function(_) {
     if (!arguments.length) return tooltip;
     tooltip = _;
+    return chart;
+  };
+
+  chart.state = function(_) {
+    if (!arguments.length) return state;
+    state = _;
     return chart;
   };
 

@@ -47,7 +47,7 @@ div {
 </div>
 
 <script src="../lib/d3.v2.js"></script>
-<!--<script src="../lib/fisheye.js"></script>-->
+<script src="../lib/fisheye.js"></script>
 <script src="../nv.d3.js"></script>
 <script src="../src/tooltip.js"></script>
 <script src="../src/utils.js"></script>
@@ -55,7 +55,7 @@ div {
 <script src="../src/models/axis.js"></script>
 <script src="../src/models/distribution.js"></script>
 <script src="../src/models/scatter.js"></script>
-<script src="../src/models/scatterChart.js"></script>
+<script src="../src/models/scatterPlusLineChart.js"></script>
 <script>
 
 
@@ -63,11 +63,10 @@ div {
 //Format A
 var chart;
 nv.addGraph(function() {
-  chart = nv.models.scatterChart()
+  chart = nv.models.scatterPlusLineChart()
                 .showDistX(true)
                 .showDistY(true)
                 //.height(500)
-                .useVoronoi(true)
                 .color(d3.scale.category10().range());
 
   chart.xAxis.tickFormat(d3.format('.02f'))
@@ -94,7 +93,9 @@ function randomData(groups, points) { //# groups,# points per group
   for (i = 0; i < groups; i++) {
     data.push({
       key: 'Group ' + i,
-      values: []
+      values: [],
+      slope: Math.random() - .01,
+      intercept: Math.random() - .5
     });
 
     for (j = 0; j < points; j++) {

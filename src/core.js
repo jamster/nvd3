@@ -1,7 +1,8 @@
-var nv = {
-  version: '0.0.1a',
-  dev: true //set false when in production
-};
+
+var nv = window.nv || {};
+
+nv.version = '0.0.1a';
+nv.dev = true //set false when in production
 
 window.nv = nv;
 
@@ -34,7 +35,12 @@ if (nv.dev) {
 
 // Logs all arguments, and returns the last so you can test things in place
 nv.log = function() {
-  if (nv.dev && console.log && console.log.apply) console.log.apply(console, arguments);
+  if (nv.dev && console.log && console.log.apply)
+    console.log.apply(console, arguments)
+  else if (nv.dev && console.log && Function.prototype.bind) {
+    var log = Function.prototype.bind.call(console.log, console);
+    log.apply(console, arguments);
+  }
   return arguments[arguments.length - 1];
 };
 
@@ -46,7 +52,7 @@ nv.render = function render(step) {
   nv.dispatch.render_start();
 
   setTimeout(function() {
-    var chart;
+    var chart, graph;
 
     for (var i = 0; i < step && (graph = render.queue[i]); i++) {
       chart = graph.generate();
