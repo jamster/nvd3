@@ -87,9 +87,9 @@
         top = pos[1] - height - dist;
         var tLeft = tooltipLeft(container);
         var tTop = tooltipTop(container);
-        if (tLeft < scrollLeft) left = scrollLeft + 5;
+//        if (tLeft < scrollLeft) left = scrollLeft + 5;
         if (tLeft + width > windowWidth) left = left - width/2 + 5;
-        if (scrollTop > tTop) top = scrollTop;
+//        if (scrollTop > tTop) top = scrollTop;
         break;
     }
 
