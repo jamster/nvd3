@@ -1,7 +1,9 @@
-var nv = {
-  version: '0.0.1a',
-  dev: true //set false when in production
-};
+
+var nv = window.nv || {};
+
+
+nv.version = '1.1.10b';
+nv.dev = true //set false when in production
 
 window.nv = nv;
 
@@ -33,34 +35,43 @@ if (nv.dev) {
 //  Public Core NV functions
 
 // Logs all arguments, and returns the last so you can test things in place
+// Note: in IE8 console.log is an object not a function, and if modernizr is used
+// then calling Function.prototype.bind with with anything other than a function
+// causes a TypeError to be thrown.
 nv.log = function() {
-  if (nv.dev && console.log) console.log.apply(console, arguments);
+  if (nv.dev && console.log && console.log.apply)
+    console.log.apply(console, arguments)
+  else if (nv.dev && typeof console.log == "function" && Function.prototype.bind) {
+    var log = Function.prototype.bind.call(console.log, console);
+    log.apply(console, arguments);
+  }
   return arguments[arguments.length - 1];
 };
 
 
 nv.render = function render(step) {
-  step = step || 1; // number of graphs to generate in each timout loop
+  step = step || 1; // number of graphs to generate in each timeout loop
 
-  render.active = true;
+  nv.render.active = true;
   nv.dispatch.render_start();
 
   setTimeout(function() {
-    var chart;
+    var chart, graph;
 
-    for (var i = 0; i < step && (graph = render.queue[i]); i++) {
+    for (var i = 0; i < step && (graph = nv.render.queue[i]); i++) {
       chart = graph.generate();
       if (typeof graph.callback == typeof(Function)) graph.callback(chart);
       nv.graphs.push(chart);
     }
 
-    render.queue.splice(0, i);
+    nv.render.queue.splice(0, i);
 
-    if (render.queue.length) setTimeout(arguments.callee, 0);
+    if (nv.render.queue.length) setTimeout(arguments.callee, 0);
     else { nv.render.active = false; nv.dispatch.render_end(); }
   }, 0);
 };
 
+nv.render.active = false;
 nv.render.queue = [];
 
 nv.addGraph = function(obj) {
