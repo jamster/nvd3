@@ -1,4 +1,9 @@
 
+# Jekyll Files #
+################
+_site
+
+
 # Random Files #
 ################
 *.swp
@@ -17,3 +22,6 @@
 ehthumbs.db
 Icon?
 Thumbs.db
+#  nodejs packages   #
+######################
+node_modules

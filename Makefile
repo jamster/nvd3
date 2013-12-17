@@ -1,17 +1,40 @@
 JS_FILES = \
-	src/nvtooltip.js \
 	src/intro.js \
 	src/core.js \
+	src/interactiveLayer.js \
+	src/tooltip.js \
+	src/utils.js \
+	src/models/axis.js \
+	src/models/bullet.js \
+	src/models/bulletChart.js \
+	src/models/cumulativeLineChart.js \
+	src/models/discreteBar.js \
+	src/models/discreteBarChart.js \
+	src/models/distribution.js \
+	src/models/historicalBar.js \
+	src/models/historicalBarChart.js \
+	src/models/indentedTree.js \
 	src/models/legend.js \
-	src/models/xaxis.js \
-	src/models/yaxis.js \
-	src/models/bar.js \
 	src/models/line.js \
-	src/models/lineWithFocus.js \
-	src/models/lineWithLegend.js \
+	src/models/lineChart.js \
+	src/models/linePlusBarChart.js \
+	src/models/lineWithFocusChart.js \
+	src/models/linePlusBarWithFocusChart.js \
+	src/models/multiBar.js \
+	src/models/multiBarChart.js \
+	src/models/multiBarHorizontal.js \
+	src/models/multiBarHorizontalChart.js \
+	src/models/multiChart.js \
+	src/models/ohlcBar.js \
+	src/models/pie.js \
+	src/models/pieChart.js \
 	src/models/scatter.js \
-	src/models/scatterWithLegend.js \
+	src/models/scatterChart.js \
+	src/models/scatterPlusLineChart.js \
 	src/models/sparkline.js \
+	src/models/sparklinePlus.js \
+	src/models/stackedArea.js \
+	src/models/stackedAreaChart.js \
 	src/outro.js
 
 JS_COMPILER = \
@@ -27,7 +50,7 @@ nv.d3.js: Makefile
 
 %.min.js:: Makefile
 	rm -f $@
-	cat $(filter %.js,$^) | $(JS_COMPILER) >> $@
+	$(JS_COMPILER) nv.d3.js >> $@
 
 clean:
 	rm -rf nv.d3.js nv.d3.min.js
