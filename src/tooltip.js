@@ -8,7 +8,7 @@
 
   var nvtooltip = window.nv.tooltip = {};
 
-  nvtooltip.show = function(pos, content, gravity, dist, parentContainer, classes) {
+  nvtooltip.show = function(pos, content, gravity, dist, parentContainer, classes, allowOverscrolling) {
 
     var container = document.createElement('div');
         container.className = 'nvtooltip ' + (classes ? classes : 'xy-tooltip');
@@ -33,35 +33,41 @@
         scrollLeft = body.scrollLeft,
         left, top;
 
-
     switch (gravity) {
       case 'e':
         left = pos[0] - width - dist;
         top = pos[1] - (height / 2);
-        if (left < scrollLeft) left = pos[0] + dist;
-        if (top < scrollTop) top = scrollTop + 5;
-        if (top + height > scrollTop + windowHeight) top = scrollTop - height - 5;
+        if (!allowOverscrolling) {
+          if (left < scrollLeft) left = pos[0] + dist;
+          if (top < scrollTop) top = scrollTop + 5;
+          if (top + height > scrollTop + windowHeight) top = scrollTop - height - 5;
         break;
       case 'w':
         left = pos[0] + dist;
         top = pos[1] - (height / 2);
-        if (left + width > windowWidth) left = pos[0] - width - dist;
-        if (top < scrollTop) top = scrollTop + 5;
-        if (top + height > scrollTop + windowHeight) top = scrollTop - height - 5;
+        if (!allowOverscrolling) {
+          if (left + width > windowWidth) left = pos[0] - width - dist;
+          if (top < scrollTop) top = scrollTop + 5;
+          if (top + height > scrollTop + windowHeight) top = scrollTop - height - 5;
+        }
         break;
       case 'n':
         left = pos[0] - (width / 2);
         top = pos[1] + dist;
-        if (left < scrollLeft) left = scrollLeft + 5;
-        if (left + width > windowWidth) left = windowWidth - width - 5;
-        if (top + height > scrollTop + windowHeight) top = pos[1] - height - dist;
+        if (!allowOverscrolling) {
+          if (left < scrollLeft) left = scrollLeft + 5;
+          if (left + width > windowWidth) left = windowWidth - width - 5;
+          if (top + height > scrollTop + windowHeight) top = pos[1] - height - dist;
+        }
         break;
       case 's':
         left = pos[0] - (width / 2);
         top = pos[1] - height - dist;
-        if (left < scrollLeft) left = scrollLeft + 5;
-        if (left + width > windowWidth) left = windowWidth - width - 5;
-        if (scrollTop > top) top = pos[1] + 20;
+        if (!allowOverscrolling) {
+          if (left < scrollLeft) left = scrollLeft + 5;
+          if (left + width > windowWidth) left = windowWidth - width - 5;
+          if (scrollTop > top) top = pos[1] + 20;
+        }
         break;
     }
 
